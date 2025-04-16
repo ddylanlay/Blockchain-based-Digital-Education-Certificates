@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Shield, ArrowLeft, Upload, CheckCircle2, AlertCircle, FileUp } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
 
 export default function UploadCertificatePage() {
   const router = useRouter()
@@ -87,10 +86,26 @@ export default function UploadCertificatePage() {
     if (validateForm()) {
       setIsSubmitting(true)
 
+      // Create a new certificate object
+      const newCertificate = {
+        id: `BC${Math.floor(10000 + Math.random() * 90000)}`, // Generate a random ID
+        name: formData.certificateType === "degree" ? `${formData.department} Degree` : "Certificate",
+        institution: "Tech University",
+        issueDate: new Date().toISOString().split("T")[0],
+        status: "pending",
+        txHash: "",
+        department: formData.department,
+        fullName: formData.fullName,
+        graduationYear: formData.graduationYear,
+      }
+
       // Simulate form submission
       setTimeout(() => {
         setIsSubmitting(false)
         setIsSuccess(true)
+
+        // Store the new certificate in localStorage to be picked up by the dashboard
+        localStorage.setItem("newCertificate", JSON.stringify(newCertificate))
 
         // In a real application, you would upload the file and form data to your backend
         console.log("Certificate upload data:", {
@@ -247,8 +262,6 @@ export default function UploadCertificatePage() {
                   />
                   {errors.graduationYear && <p className="text-sm text-red-500">Graduation year is required</p>}
                 </div>
-
-                <Separator className="my-4" />
 
                 <div className="grid gap-2">
                   <Label htmlFor="certificateFile" className="flex">
