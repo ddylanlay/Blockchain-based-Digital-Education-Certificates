@@ -9,6 +9,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "CertChain - Blockchain Certificate Verification",
   description: "Secure, verifiable, and tamper-proof certificates on the blockchain",
+    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -33,3 +34,5 @@ export default function RootLayout({
   )
 }
 
+
+import './globals.css'
