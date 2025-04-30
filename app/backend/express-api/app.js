@@ -1,7 +1,7 @@
-import express from 'express';
-import bodyParser from 'body-parser';
-import cors from 'cors'; // For handling Cross-Origin Requests
-import certificateRoutes from './routes/certificate.routes.js';
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors'); // For handling Cross-Origin Requests
+const certificateRoutes = require('./routes/certificate.routes.js');
 
 const app = express();
 const PORT = 5000; // You can choose any port

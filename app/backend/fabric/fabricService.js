@@ -4,14 +4,12 @@ const { Gateway, Wallets } = require('fabric-network');
 const path = require('path');
 const fs = require('fs');
 
-const CHANNEL_NAME = 'mychannel'; // Update as needed
-const CHAINCODE_NAME = 'certificateContract'; // Your chaincode name
+const CHANNEL_NAME = 'mychannel'; 
+const CHAINCODE_NAME = 'certificateContract';
 
-// Adjust this path to your connection profile
 const ccpPath = path.resolve(__dirname, '..', 'connection-profile', 'connection.json');
 const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
 
-// Adjust this path to your wallet
 const walletPath = path.join(__dirname, '..', 'wallet');
 
 async function getContract() {

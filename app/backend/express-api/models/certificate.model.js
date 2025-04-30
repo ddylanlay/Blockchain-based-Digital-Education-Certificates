@@ -1,7 +1,7 @@
 const certificatesData = require("./data/certificates-data.json");
 const dashboardCertificatesData = require("./data/dashboard-certificates-data.json");
   
-export default class Certificate {
+class Certificate {
     static getAllAdminCertificates() {
         return certificatesData;
     }
@@ -22,3 +22,5 @@ export default class Certificate {
         return false;
     }
 }
+
+module.exports = Certificate;

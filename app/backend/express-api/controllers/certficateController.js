@@ -1,10 +1,10 @@
-import Certificate from "../models/certificate.model.js";
+const Certificate = require('../models/certificate.model.js');
 
 const { Gateway, Wallets } = require('fabric-network');
 const path = require('path');
 const fs = require('fs');
 
-export async function issueCertificate(certData) {
+exports.issueCertificate = async function (certData) {
   const ccpPath = path.resolve(__dirname, '../../network/connection-profile.json');
   const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
 
@@ -30,26 +30,26 @@ export async function issueCertificate(certData) {
 
   await gateway.disconnect();
   return JSON.parse(result.toString());
-}
-
-export default function getAllAdminCertificates (req, res){
-    const certificates = Certificate.getAllAdminCertificates();
-    res.json(certificates);
 };
 
-export default function getAllDashboardCertificates(req, res){
-    const certificates = Certificate.getAllDashboardCertificates();
-    res.json(certificates);
+exports.getAllAdminCertificates = function (req, res) {
+  const certificates = Certificate.getAllAdminCertificates();
+  res.json(certificates);
 };
-  
-export default function revokeCertificate(req, res) {
-    const { id } = req.params;
-    const isRevoked = Certificate.revokeCertificate(id);
 
-    if (isRevoked) {
-        res.json({ message: `Certificate with ID ${id} has been revoked.` });
-    } else {
-        res.status(404).json({ message: `Certificate with ID ${id} not found.` });
-    }
+exports.getAllDashboardCertificates = function (req, res) {
+  const certificates = Certificate.getAllDashboardCertificates();
+  res.json(certificates);
+};
+
+exports.revokeCertificate = function (req, res) {
+  const { id } = req.params;
+  const isRevoked = Certificate.revokeCertificate(id);
+
+  if (isRevoked) {
+    res.json({ message: `Certificate with ID ${id} has been revoked.` });
+  } else {
+    res.status(404).json({ message: `Certificate with ID ${id} not found.` });
+  }
 };
 

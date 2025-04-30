@@ -7,7 +7,7 @@ const {
   revokeCertificate,
 } = require('../controllers/certficateController');
 
-const fabricService = require('../fabric/fabricService');
+const fabricService = require('../../fabric/fabricService');
 
 router.get('/admin/certificates', getAllAdminCertificates);
 router.get('/dashboard/certificates', getAllDashboardCertificates);
