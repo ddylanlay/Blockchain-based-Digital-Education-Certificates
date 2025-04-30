@@ -1,12 +1,17 @@
-import { Router } from 'express';
-const router = Router();
-import { getAllAdminCertificates, getAllDashboardCertificates, revokeCertificate } from '../controllers/certficateController.js';
+const express = require('express');
+const router = express.Router();
+
+const {
+  getAllAdminCertificates,
+  getAllDashboardCertificates,
+  revokeCertificate,
+} = require('../controllers/certficateController');
+
+const fabricService = require('../fabric/fabricService');
 
 router.get('/admin/certificates', getAllAdminCertificates);
 router.get('/dashboard/certificates', getAllDashboardCertificates);
 router.post('/admin/certificates/:id/revoke', revokeCertificate);
-
-const fabricService = require('../fabric/fabricService');
 
 router.post('/issue', async (req, res) => {
   try {
@@ -30,5 +35,3 @@ router.get('/:certId', async (req, res) => {
 });
 
 module.exports = router;
-
-export default router;
