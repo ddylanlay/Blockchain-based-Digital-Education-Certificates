@@ -4,7 +4,6 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "test:fabric": "ts-node src/test-fabric.ts",
     "dev": "ts-node src/server.ts"
   },
   "keywords": [],
