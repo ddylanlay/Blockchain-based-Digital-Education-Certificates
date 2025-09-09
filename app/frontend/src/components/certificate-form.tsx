@@ -47,7 +47,7 @@ export function CertificateForm({ certificate, onSuccess, onCancel, mode }: Cert
     owner: '',
     department: '',
     academicYear: '',
-    joinDate: '',
+    startDate: '',
     endDate: '',
     certificateType: '',
     issueDate: '',
@@ -65,7 +65,7 @@ export function CertificateForm({ certificate, onSuccess, onCancel, mode }: Cert
         owner: certificate.owner,
         department: certificate.department,
         academicYear: certificate.academicYear,
-        joinDate: certificate.joinDate,
+        startDate: certificate.startDate,
         endDate: certificate.endDate,
         certificateType: certificate.certificateType,
         issueDate: certificate.issueDate,
@@ -171,12 +171,12 @@ export function CertificateForm({ certificate, onSuccess, onCancel, mode }: Cert
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="joinDate">Join Date</Label>
+              <Label htmlFor="startDate">Start Date</Label>
               <Input
-                id="joinDate"
+                id="startDate"
                 type="date"
-                value={formData.joinDate}
-                onChange={(e) => handleInputChange('joinDate', e.target.value)}
+                value={formData.startDate}
+                onChange={(e) => handleInputChange('startDate', e.target.value)}
                 required
               />
             </div>

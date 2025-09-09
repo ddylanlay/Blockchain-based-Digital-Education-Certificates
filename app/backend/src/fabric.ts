@@ -330,6 +330,10 @@ export async function readAsset(id: string): Promise<Asset> {
     return asset;
   } catch (error) {
     console.error(`❌ Failed to read asset ${id}:`, error);
+    // Check if it's the "does not exist" error from chaincode
+    if (error instanceof Error && error.message.includes('does not exist')) {
+      throw new Error(`Asset ${id} does not exist`);
+    }
     throw new Error(`Failed to read asset ${id}: ${error}`);
   }
 }
@@ -397,8 +401,14 @@ export async function updateAsset(
 export async function deleteAsset(id: string): Promise<void> {
   try {
     console.log(`🗑️ Deleting asset: ${id}`);
-    const activeContract = await ensureConnection();
 
+    // First check if asset exists
+    const exists = await assetExists(id);
+    if (!exists) {
+      throw new Error(`Asset ${id} does not exist`);
+    }
+
+    const activeContract = await ensureConnection();
     await activeContract.submitTransaction('DeleteAsset', id);
 
     console.log(`✅ Asset ${id} deleted successfully`);
@@ -433,16 +443,14 @@ export async function transferAsset(id: string, newOwner: string): Promise<strin
 export async function assetExists(id: string): Promise<boolean> {
   try {
     console.log(`🔍 Checking if asset exists: ${id}`);
-    const activeContract = await ensureConnection();
-
-    const result = await activeContract.evaluateTransaction('AssetExists', id);
-    const exists = result.toString() === 'true';
+    const allAssets = await getAllAssets();
+    const exists = allAssets.some(asset => asset.id === id);
 
     console.log(`✅ Asset ${id} exists: ${exists}`);
     return exists;
   } catch (error) {
     console.error(`❌ Failed to check if asset ${id} exists:`, error);
-    throw new Error(`Failed to check if asset ${id} exists: ${error}`);
+    return false; // Return false instead of throwing error
   }
 }
 
@@ -462,6 +470,14 @@ export async function updateAssetStatus(id: string, status: string): Promise<voi
       // Fallback: read asset and update with new status
       console.log('UpdateAssetStatus not available, using UpdateAsset fallback');
       const asset = await readAsset(id);
+
+      // If status is changing to "issued" and issueDate is empty, set it to today
+      let issueDate = asset.issueDate;
+      if (status === 'issued' && (!issueDate || issueDate === '')) {
+        issueDate = new Date().toISOString().split('T')[0]; // Today's date
+        console.log(`�� Setting issue date to ${issueDate} for asset ${id}`);
+      }
+
       await updateAsset(
         id,
         asset.owner,
@@ -470,7 +486,7 @@ export async function updateAssetStatus(id: string, status: string): Promise<voi
         asset.startDate,
         asset.endDate,
         asset.certificateType,
-        asset.issueDate,
+        issueDate, // Use the potentially updated issueDate
         status, // Only change the status
         asset.txHash
       );

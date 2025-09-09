@@ -108,12 +108,9 @@ app.post('/api/assets', async (req, res) => {
       owner,
       department,
       academicYear,
-      joinDate,
+      startDate,
       endDate,
       certificateType,
-      issueDate,
-      status,
-      txHash
     } = req.body;
 
     // Validate required fields
@@ -133,17 +130,31 @@ app.post('/api/assets', async (req, res) => {
       });
     }
 
+    // Generate a random unique hash
+    const crypto = require('crypto');
+    const timestamp = Date.now().toString();
+    const randomBytes = crypto.randomBytes(16).toString('hex');
+    const initial_txHash = crypto.createHash('sha256')
+      .update(`${id}-${timestamp}-${randomBytes}`)
+      .digest('hex')
+      .substring(0, 32); // Take first 32 characters
+    const txHash = `0x${initial_txHash}`;
+
+
+    // Set issue date to today's date and status to draft
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
     await createAsset(
       id,
       owner,
       department,
       academicYear || '',
-      joinDate || '',
+      startDate || '',
       endDate || '',
       certificateType || '',
-      issueDate || '',
-      status || 'draft',
-      txHash || ''
+      '', // Will be set when status is "issued"
+      'draft', // Starts as draft
+      txHash
     );
 
     // success response after asset is created and stored in blockchain ledger (on chaincode side)
@@ -172,10 +183,9 @@ app.put('/api/assets/:id', async (req, res) => {
       owner,
       department,
       academicYear,
-      joinDate,
+      startDate,
       endDate,
       certificateType,
-      issueDate,
       status,
       txHash
     } = req.body;
@@ -188,17 +198,27 @@ app.put('/api/assets/:id', async (req, res) => {
       });
     }
 
+    // Read the existing asset to preserve the original issueDate
+    const existingAsset = await readAsset(id);
+
+    // If status is changing to "issued" and issueDate is empty, set it to today
+    let issueDate = existingAsset.issueDate;
+    if (status === 'issued' && (!issueDate || issueDate === '')) {
+      issueDate = new Date().toISOString().split('T')[0]; // Today's date
+      console.log(`�� Setting issue date to ${issueDate} for asset ${id}`);
+    }
+
     await updateAsset(
       id,
       owner,
       department,
       academicYear || '',
-      joinDate || '',
+      startDate || '',
       endDate || '',
       certificateType || '',
-      issueDate || '',
-      status || 'draft',
-      txHash || ''
+      issueDate,
+      status || existingAsset.status,
+      txHash || existingAsset.txHash
     );
 
     res.json({ success: true, message: 'Asset updated successfully' });
@@ -234,6 +254,17 @@ app.patch('/api/assets/:id/status', async (req, res) => {
         success: false,
         error: 'Asset not found'
       });
+    }
+
+
+    // Read the current asset to get all its data
+    const currentAsset = await readAsset(id);
+
+    // If status is changing to "issued" and issueDate is empty, set it to today
+    let issueDate = currentAsset.issueDate;
+    if (status === 'issued' && (!issueDate || issueDate === '')) {
+      issueDate = new Date().toISOString().split('T')[0]; // Today's date
+      console.log(`�� Setting issue date to ${issueDate} for asset ${id}`);
     }
 
     await updateAssetStatus(id, status);

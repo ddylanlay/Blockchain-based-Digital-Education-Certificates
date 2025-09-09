@@ -41,8 +41,6 @@ export default function FabricAssetManager() {
     startDate: '',
     endDate: '',
     certificateType: '',
-    issueDate: '',
-    status: 'draft',
     txHash: ''
   });
 
@@ -51,13 +49,18 @@ export default function FabricAssetManager() {
     setLoading(true);
     setError(null);
     try {
+      console.log('🔄 Fetching fresh assets from blockchain...');
       const response = await fetch(`${API_BASE_URL}/assets`);
       const result: ApiResponse<Asset[]> = await response.json();
 
       if (result.success) {
-        console.log('🔍 Assets from blockchain:', result.data);
-        console.log('🔍 Asset IDs:', result.data?.map(asset => asset.id));
+        console.log('✅ Fresh assets from blockchain:', result.data?.map(a => a.id));
         setAssets(result.data || []);
+
+        // Clear any stale data
+        if (result.data?.length === 0) {
+          console.log('�� No assets found in blockchain - clearing local state');
+        }
       } else {
         setError(result.error || 'Failed to fetch assets');
       }
@@ -86,9 +89,6 @@ export default function FabricAssetManager() {
           startDate: newAsset.startDate,
           endDate: newAsset.endDate,
           certificateType: newAsset.certificateType,
-          issueDate: newAsset.issueDate,
-          status: newAsset.status,
-          txHash: newAsset.txHash,
       }
 
       // HTTP POST request to backend
@@ -114,9 +114,6 @@ export default function FabricAssetManager() {
           startDate: '',
           endDate: '',
           certificateType: '',
-          issueDate: '',
-          status: 'draft',
-          txHash: ''
         });
         setError(null);
       } else {
@@ -153,7 +150,7 @@ const editAsset = async () => {
       owner: editFormData.owner,
       department: editFormData.department,
       academicYear: editFormData.academicYear,
-      joinDate: editFormData.startDate,
+      startDate: editFormData.startDate,
       endDate: editFormData.endDate,
       certificateType: editFormData.certificateType,
       issueDate: editFormData.issueDate,
@@ -245,7 +242,7 @@ const editAsset = async () => {
     }
   };
 
-  // Delete asset
+  // Delete asset with better error handling
   const deleteAsset = async (id: string) => {
     if (!confirm(`Are you sure you want to delete asset ${id}?`)) return;
 
@@ -258,9 +255,16 @@ const editAsset = async () => {
       const result: ApiResponse<any> = await response.json();
 
       if (result.success) {
-        await fetchAssets();
+        await fetchAssets(); // Refresh the list
       } else {
-        setError(result.error || 'Failed to delete asset');
+        // Handle 404 specifically - asset doesn't exist
+        if (response.status === 404) {
+          console.log(`Asset ${id} not found in blockchain, refreshing list...`);
+          setError(`Asset ${id} not found. Refreshing asset list...`);
+          await fetchAssets(); // Refresh to sync with blockchain
+        } else {
+          setError(result.error || 'Failed to delete asset');
+        }
       }
     } catch (err) {
       setError(`Network error: ${err}`);
@@ -302,6 +306,18 @@ const editAsset = async () => {
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
+              </button>
+              <button
+                onClick={() => {
+                  console.log('🧹 Clearing stale data and refreshing...');
+                  setAssets([]); // Clear all local state
+                  setError(null); // Clear any errors
+                  fetchAssets(); // Fetch fresh data from blockchain
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Clear & Refresh
               </button>
               <button
                 onClick={() => setShowCreateForm(true)}
@@ -366,17 +382,19 @@ const editAsset = async () => {
               />
               <input
                 type="date"
-                placeholder="Start Date"
+                placeholder="Program Start Date"
                 value={newAsset.startDate || ''}
                 onChange={(e) => setNewAsset({ ...newAsset, startDate: e.target.value })}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                title="When the academic program started (e.g., enrollment date)"
               />
               <input
                 type="date"
-                placeholder="End Date"
+                placeholder="Program End Date"
                 value={newAsset.endDate || ''}
                 onChange={(e) => setNewAsset({ ...newAsset, endDate: e.target.value })}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                title="When the academic program ended (e.g., graduation date)"
               />
               <input
                 type="text"
@@ -385,24 +403,18 @@ const editAsset = async () => {
                 onChange={(e) => setNewAsset({ ...newAsset, certificateType: e.target.value })}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <input
-                type="date"
-                placeholder="Issue Date"
-                value={newAsset.issueDate || ''}
-                onChange={(e) => setNewAsset({ ...newAsset, issueDate: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <select
-                value={newAsset.status || 'draft'}
-                onChange={(e) => setNewAsset({ ...newAsset, status: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="draft">Draft</option>
-                <option value="issued">Issued</option>
-                <option value="verified">Verified</option>
-                <option value="revoked">Revoked</option>
-              </select>
             </div>
+
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Date Information:</strong>
+              </p>
+              <ul className="text-sm text-blue-700 mt-1 ml-4">
+                <li>• <strong>Program Start Date:</strong> When the student enrolled or started the program</li>
+                <li>• <strong>Program End Date:</strong> When the student completed or graduated from the program</li>
+              </ul>
+            </div>
+
             <div className="flex justify-end gap-3 mt-4">
               <button
                 onClick={() => setShowCreateForm(false)}
@@ -459,30 +471,25 @@ const editAsset = async () => {
                 />
                 <input
                   type="date"
-                  placeholder="Start Date"
+                  placeholder="Program Start Date"
                   value={editFormData.startDate || ''}
                   onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  title="When the academic program started"
                 />
                 <input
                   type="date"
-                  placeholder="End Date"
+                  placeholder="Program End Date"
                   value={editFormData.endDate || ''}
                   onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  title="When the academic program ended"
                 />
                 <input
                   type="text"
                   placeholder="Certificate Type"
                   value={editFormData.certificateType || ''}
                   onChange={(e) => setEditFormData({ ...editFormData, certificateType: e.target.value })}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <input
-                  type="date"
-                  placeholder="Issue Date"
-                  value={editFormData.issueDate || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, issueDate: e.target.value })}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <select
@@ -496,6 +503,17 @@ const editAsset = async () => {
                   <option value="revoked">Revoked</option>
                 </select>
               </div>
+
+              {/* Show current issue date if it exists */}
+              {editingAsset.issueDate && (
+                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    <strong>Issue Date:</strong> {editingAsset.issueDate}
+                    <br />
+                    <span className="text-xs text-green-600">This date was set when the certificate was issued and cannot be changed.</span>
+                  </p>
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 mt-4">
                 <button
@@ -581,7 +599,6 @@ const editAsset = async () => {
                                   startDate: asset.startDate,
                                   endDate: asset.endDate,
                                   certificateType: asset.certificateType,
-                                  issueDate: asset.issueDate,
                                   status: asset.status,
                                   txHash: asset.txHash,
                                 });
