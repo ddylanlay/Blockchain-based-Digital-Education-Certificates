@@ -1,6 +1,6 @@
 export interface Asset {
-  id: string;
-  owner: string;
+  ID: string;
+  Owner: string;
   department: string;
   academicYear: string;
   startDate: string;

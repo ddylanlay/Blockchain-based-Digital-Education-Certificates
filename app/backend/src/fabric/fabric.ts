@@ -437,7 +437,7 @@ export async function assetExists(id: string): Promise<boolean> {
   try {
     console.log(`🔍 Checking if asset exists: ${id}`);
     const allAssets = await getAllAssets();
-    const exists = allAssets.some(asset => asset.id === id);
+    const exists = allAssets.some(asset => asset.ID === id);
 
     console.log(`✅ Asset ${id} exists: ${exists}`);
     return exists;
@@ -473,7 +473,7 @@ export async function updateAssetStatus(id: string, status: string): Promise<voi
 
       await updateAsset(
         id,
-        asset.owner,
+        asset.Owner,
         asset.department,
         asset.academicYear,
         asset.startDate,
@@ -555,7 +555,7 @@ export async function getAssetsByOwner(owner: string): Promise<Asset[]> {
   try {
     console.log(`🔍 Getting assets by owner: ${owner}`);
     const allAssets = await getAllAssets();
-    const ownerAssets = allAssets.filter(asset => asset.owner === owner);
+    const ownerAssets = allAssets.filter(asset => asset.Owner === owner);
 
     console.log(`✅ Found ${ownerAssets.length} assets for owner: ${owner}`);
     return ownerAssets;
