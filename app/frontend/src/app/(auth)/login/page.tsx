@@ -10,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Shield, User, GraduationCap } from "lucide-react"
 
+const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
 export default function LoginPage() {
   const router = useRouter()
   const [userType, setUserType] = useState<"student" | "university">("student")
@@ -45,7 +47,7 @@ export default function LoginPage() {
           <div className="flex items-center justify-center mb-4">
             <Shield className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl text-center">CertChain Demo</CardTitle>
+          <CardTitle className="text-2xl text-center">CertChain</CardTitle>
           <CardDescription className="text-center">
             Choose your role to access the blockchain certificate system
           </CardDescription>
@@ -73,7 +75,7 @@ export default function LoginPage() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="demoUser">Select Demo User:</Label>
+              <Label htmlFor="demoUser">Select User:</Label>
               <Select value={selectedDemo} onValueChange={setSelectedDemo}>
                 <SelectTrigger>
                   <SelectValue placeholder={`Select a demo ${userType}`} />
@@ -94,12 +96,12 @@ export default function LoginPage() {
               className="w-full" 
               disabled={!selectedDemo}
             >
-              Enter Demo as {userType === "student" ? "Student" : "University Admin"}
+              Try as {userType === "student" ? "Student" : "University Admin"}
             </Button>
           </div>
 
           <div className="mt-6 p-4 bg-muted rounded-lg">
-            <h4 className="font-medium text-sm mb-2">Demo Flow:</h4>
+            <h4 className="font-medium text-sm mb-2">{capitalise(userType)} Flow:</h4>
             <div className="text-xs text-muted-foreground space-y-1">
               {userType === "student" ? (
                 <div>

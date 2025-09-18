@@ -1,7 +1,4 @@
-"use client"
-
 import type { ReactNode } from "react"
-import { useState, useEffect } from "react"
 import Link from "next/link"
 import { FileCheck, FileText, Shield, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -11,30 +8,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const [walletAddress, setWalletAddress] = useState<string>("")
-
-  useEffect(() => {
-    const checkWalletConnection = async () => {
-      if (typeof window.ethereum !== "undefined") {
-        try {
-          const accounts = await window.ethereum.request({ method: "eth_accounts" })
-          if (accounts.length > 0) {
-            setWalletAddress(accounts[0])
-          }
-        } catch (error) {
-          console.error("Error checking wallet connection:", error)
-        }
-      }
-    }
-
-    checkWalletConnection()
-  }, [])
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -64,13 +42,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              {walletAddress && (
-                <>
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground break-all">{walletAddress}</div>
-                  <DropdownMenuSeparator />
-                </>
-              )}
               <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />

@@ -16,12 +16,10 @@ import {
 import { Award, Download, Eye, FileText, MoreHorizontal, Plus, Search, Shield, Trash2, Loader2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useWallet } from "@/components/wallet-provider"
+import { Asset } from "@/lib/types"
 import { apiService } from "@/lib/api"
-import type { Asset } from "@/app/types"
 
 export default function CertificatesPage() {
-  const { isConnected } = useWallet()
   const [searchQuery, setSearchQuery] = useState("")
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -111,28 +109,6 @@ export default function CertificatesPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete certificate')
     }
-  }
-
-  if (!isConnected) {
-    return (
-      <div className="flex min-h-screen w-full flex-col">
-        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
-          <Link className="flex items-center gap-2 font-semibold" href="/admin">
-            <Shield className="h-6 w-6 text-primary" />
-            <span>CertChain</span>
-          </Link>
-        </header>
-        <main className="flex-1 container mx-auto py-8 px-4">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground">
-                Please connect your wallet to access the certificates management system.
-              </p>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    )
   }
 
   return (

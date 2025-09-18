@@ -43,23 +43,8 @@ export default function Dashboard() {
     },
   ])
 
-  const [walletAddress, setWalletAddress] = useState<string>("")
-
   useEffect(() => {
-    const checkWalletConnection = async () => {
-      if (typeof window.ethereum !== "undefined") {
-        try {
-          const accounts = await window.ethereum.request({ method: "eth_accounts" })
-          if (accounts.length > 0) {
-            setWalletAddress(accounts[0])
-          }
-        } catch (error) {
-          console.error("Error checking wallet connection:", error)
-        }
-      }
-    }
-
-    checkWalletConnection()
+    
 
     // Check for newly uploaded certificates
     const newCertificate = localStorage.getItem("newCertificate")

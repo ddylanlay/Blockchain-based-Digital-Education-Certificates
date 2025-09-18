@@ -23,11 +23,6 @@ export default function Home() {
           </Link>
         </nav>
         <div className="flex items-center gap-2">
-          <Link href="/login">
-            <Button size="sm" className="font-semibold">
-              Try Demo
-            </Button>
-          </Link>
         </div>
       </header>
       <main className="flex-1 flex flex-col items-center justify-center">
