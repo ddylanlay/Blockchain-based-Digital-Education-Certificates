@@ -55,7 +55,7 @@ export default function CertificatesPage() {
   // Filter certificates based on search query and filters
   const filteredCertificates = certificates.filter((cert) => {
     const matchesSearch =
-      cert.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      cert.Owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
       cert.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       cert.department.toLowerCase().includes(searchQuery.toLowerCase())
 
