@@ -1,6 +1,6 @@
 # Backend API Server
 
-This directory contains the backend API server for the Education Credential Verification system.
+This directory contains the backend API server for the Education Credential Verification system with in-wallet approach.
 
 ## Structure
 
@@ -8,7 +8,7 @@ This directory contains the backend API server for the Education Credential Veri
 backend/
 ├── src/
 │   ├── fabric.ts             # Hyperledger Fabric connection and blockchain operations
-│   └── server.ts             # Express.js API server
+│   └── server.ts             # Express.js API server with wallet integration
 ├── package.json              # Node.js dependencies and scripts
 ├── tsconfig.json             # TypeScript configuration
 └── README.md                 # This file
@@ -21,18 +21,15 @@ backend/
 ```bash
 # From the backend directory
 npm run dev
+# or
+npm start
 ```
 
 The server will start on `http://localhost:3001` and provide the following API endpoints:
 
 - `GET /api/assets` - Get all assets from the blockchain
-- `GET /api/assets/:id` - Get a specific asset
-- `POST /api/assets` - Create a new asset
-- `PUT /api/assets/:id` - Update an existing asset
-- `PATCH /api/assets/:id/status` - Update asset status only
-- `POST /api/assets/:id/transfer` - Transfer asset ownership
-- `DELETE /api/assets/:id` - Delete an asset
-- `GET /api/assets/:id/exists` - Check if asset exists
+- `POST /api/assets` - Create a new credential (in-wallet approach)
+- `POST /api/verify-credential` - Verify credential hash and signature
 - `GET /health` - Health check endpoint
 
 ## Prerequisites
@@ -41,10 +38,17 @@ The server will start on `http://localhost:3001` and provide the following API e
 2. Ensure the Hyperledger Fabric test network is running (use `smart-fabric.sh start`)
 3. The basic chaincode should be deployed on the network
 
+## In-Wallet Approach
+
+- **Credentials stored in user's wallet** (localStorage simulation)
+- **Only credential hashes stored on blockchain** for verification
+- **Wallet signature verification** for authentication
+- **Better performance** and user privacy
+
 ## Notes
 
-- The backend uses direct crypto material approach (no wallet required)
-- All data operations are performed directly on the Hyperledger Fabric blockchain
+- The backend uses in-wallet approach with blockchain verification
+- Full credential data is stored in user's wallet, only hashes on blockchain
 - The server automatically initializes the Fabric connection on startup
 - Network management is handled by `smart-fabric.sh` in the parent directory
 

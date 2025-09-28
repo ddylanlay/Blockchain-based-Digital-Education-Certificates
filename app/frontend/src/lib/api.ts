@@ -1,133 +1,93 @@
-import {
-    Certificate,
-    CreateCertificateRequest,
-    UpdateCertificateRequest,
-    UpdateStatusRequest,
-    ApiResponse,
-    CertificateExistsResponse
-  } from './types';
+import { Asset, ApiResponse } from './types';
 
-  // Base API URL - adjust if your backend runs on a different port
+// Base URL for the API - updated for in-wallet approach
 const API_BASE_URL = 'http://localhost:3001/api';
 
-// Custom error class for API errors
-export class ApiError extends Error {
-    constructor(public status: number, message: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
+export class ApiService {
+  private baseUrl: string;
+
+  constructor(baseUrl: string = API_BASE_URL) {
+    this.baseUrl = baseUrl;
   }
 
-
-// Generic API request function
-async function apiRequest<T>(
+  // Generic request method
+  private async request<T>(
     endpoint: string,
     options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
-
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    };
-
+  ): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(url, config);
+      const url = `${this.baseUrl}${endpoint}`;
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new ApiError(
-          response.status,
-          errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`
-        );
+        return {
+          success: false,
+          error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+        };
       }
 
       const data = await response.json();
-      return data;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
+
+      // Handle different response formats
+      if (data.success !== undefined) {
+        return data;
+      } else {
+        // For direct data responses
+        return {
+          success: true,
+          data: data,
+        };
       }
-      throw new ApiError(0, `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
     }
   }
 
+  // Health check
+  async healthCheck(): Promise<ApiResponse> {
+    return this.request('/health');
+  }
 
-// Certificate API functions
-export const certificateApi = {
-    // Get all certificates
-    async getAllCertificates(): Promise<Certificate[]> {
-      const response = await apiRequest<{ success: boolean; data: Certificate[] }>('/assets');
-      return response.data || [];
-    },
+  // Get all assets (blockchain data for display)
+  async getAllAssets(): Promise<ApiResponse<Asset[]>> {
+    return this.request<Asset[]>('/assets');
+  }
 
-    // Get a single certificate by ID
-    async getCertificate(id: string): Promise<Certificate> {
-      const response = await apiRequest<{ success: boolean; data: Certificate }>(`/assets/${id}`);
-      return response.data;
-    },
+  // Create new credential (in-wallet approach)
+  async createCredential(credential: any, hash: string, signature: string, walletAddress: string): Promise<ApiResponse> {
+    return this.request('/assets', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...credential,
+        hash,
+        signature,
+        walletAddress,
+      }),
+    });
+  }
 
-    // Create a new certificate
-    async createCertificate(certificate: CreateCertificateRequest): Promise<Certificate> {
-      const response = await apiRequest<{ success: boolean; data: Certificate }>('/assets', {
-        method: 'POST',
-        body: JSON.stringify(certificate),
-      });
-      return response.data;
-    },
+  // Verify credential
+  async verifyCredential(id: string, hash: string, signature: string): Promise<ApiResponse> {
+    return this.request('/verify-credential', {
+      method: 'POST',
+      body: JSON.stringify({
+        id,
+        hash,
+        signature,
+      }),
+    });
+  }
+}
 
-    // Update an existing certificate
-    async updateCertificate(id: string, certificate: UpdateCertificateRequest): Promise<Certificate> {
-      const response = await apiRequest<{ success: boolean; data: Certificate }>(`/assets/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(certificate),
-      });
-      return response.data;
-    },
-
-    // Delete a certificate
-    async deleteCertificate(id: string): Promise<void> {
-      await apiRequest(`/assets/${id}`, {
-        method: 'DELETE',
-      });
-    },
-
-    // Transfer a certificate
-    async transferCertificate(id: string, transferData: { newOwner: string }): Promise<Certificate> {
-      const response = await apiRequest<{ success: boolean; data: Certificate }>(`/assets/${id}/transfer`, {
-        method: 'POST',
-        body: JSON.stringify(transferData),
-      });
-      return response.data;
-    },
-
-    // Update certificate status
-    async updateCertificateStatus(id: string, statusData: UpdateStatusRequest): Promise<Certificate> {
-      const response = await apiRequest<{ success: boolean; data: Certificate }>(`/assets/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify(statusData),
-      });
-      return response.data;
-    },
-
-    // Check if certificate exists
-    async certificateExists(id: string): Promise<CertificateExistsResponse> {
-      const response = await apiRequest<{ success: boolean; exists: boolean }>(`/assets/${id}/exists`);
-      return { exists: response.exists };
-    },
-
-    // Get certificates by owner
-    async getCertificatesByOwner(owner: string): Promise<Certificate[]> {
-      const response = await apiRequest<{ success: boolean; data: Certificate[] }>(`/assets/owner/${owner}`);
-      return response.data || [];
-    },
-
-    // Get certificates by status
-    async getCertificatesByStatus(status: string): Promise<Certificate[]> {
-      const response = await apiRequest<{ success: boolean; data: Certificate[] }>(`/assets/status/${status}`);
-      return response.data || [];
-    }
-  };
+// Export a default instance
+export const apiService = new ApiService();
