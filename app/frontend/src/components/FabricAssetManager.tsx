@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Plus, Edit, Trash2, Send, Check, X, RefreshCw } from 'lucide-react';
+import { AlertCircle, Plus, Edit, Trash2, Send, Check, X, RefreshCw, LogOut } from 'lucide-react';
 import { WalletService, Credential } from '../services/walletService';
 import { Wallet } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import Navigation from './Navigation';
 
 interface Asset {
   id: string;
@@ -51,6 +53,7 @@ export default function FabricAssetManager() {
   const [walletService] = useState(new WalletService());
   const [walletCredentials, setWalletCredentials] = useState<Credential[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const router = useRouter();
 
   // Fetch all assets
   const fetchAssets = async () => {
@@ -318,10 +321,6 @@ const editAsset = async () => {
   // create credential (store in wallet + blockchain)
   const createCredential = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!walletConnected) {
-      setError('Please connect your wallet first');
-      return;
-    }
 
     if (!newAsset.id || !newAsset.owner || !newAsset.department) {
       setError('ID, Owner, and Department are required');
@@ -418,11 +417,17 @@ const verifyCredential = async (credential: Credential) => {
   }
 };
 
-// Share credential
-const shareCredential = (credential: Credential) => {
-  navigator.clipboard.writeText(JSON.stringify(credential, null, 2));
-  alert('Credential copied to clipboard!');
-};
+  // Share credential
+  const shareCredential = (credential: Credential) => {
+    navigator.clipboard.writeText(JSON.stringify(credential, null, 2));
+    alert('Credential copied to clipboard!');
+  };
+
+  // Logout function
+  const logout = () => {
+    // Redirect to dedicated logout page for clean logout process
+    router.push('/logout');
+  };
 
   // Load assets on component mount
   useEffect(() => {
@@ -430,11 +435,13 @@ const shareCredential = (credential: Credential) => {
 
     const initializeApp = async () => {
       try {
-        // Check wallet connection
-        const isConnected = await walletService.checkConnection();
-        if (isConnected) {
-          const address = await walletService.getAddress();
-          setWalletAddress(address);
+        // Check localStorage for wallet connection state
+        const isWalletConnected = localStorage.getItem('walletConnected') === 'true';
+        const storedWalletAddress = localStorage.getItem('walletAddress');
+
+        if (isWalletConnected && storedWalletAddress) {
+          // Set wallet state from localStorage
+          setWalletAddress(storedWalletAddress);
           setWalletConnected(true);
           await loadWalletCredentials();
         }
@@ -462,58 +469,25 @@ const shareCredential = (credential: Credential) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header with Wallet */}
+    <div className="min-h-screen bg-gray-50">
+      <Navigation walletAddress={walletAddress} onLogout={logout} />
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Credential Wallet Manager</h1>
-              <div className="flex items-center space-x-4 mt-2">
-                {walletConnected ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="flex items-center space-x-2 bg-green-100 px-3 py-2 rounded-lg">
-                      <Wallet className="w-4 h-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-800">
-                        {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-                      </span>
-                    </div>
-                    <span className="text-sm text-gray-600">
-                      {walletCredentials.length} credentials
-                    </span>
-                    <button
-                      onClick={() => {
-                        setWalletConnected(false);
-                        setWalletAddress('');
-                        setWalletCredentials([]);
-                      }}
-                      className="px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={connectWallet}
-                    disabled={loading}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    <span>{loading ? 'Connecting...' : 'Connect Wallet'}</span>
-                  </button>
-                )}
-              </div>
               <p className="text-gray-600 mt-2">Store credentials in your wallet, verify on blockchain</p>
+              {walletConnected && (
+                <p className="text-sm text-gray-500 mt-1">
+                  {walletCredentials.length} credentials in your wallet
+                </p>
+              )}
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCreateForm(true)}
-                disabled={!walletConnected}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  !walletConnected
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors bg-green-600 text-white hover:bg-green-700"
               >
                 <Plus className="w-4 h-4" />
                 Create Credential
@@ -544,17 +518,6 @@ const shareCredential = (credential: Credential) => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Create New Credential</h2>
 
-            {/* Wallet requirement warning */}
-            {!walletConnected && (
-              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-center">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-                  <span className="text-yellow-800">
-                    Please connect your wallet to create credentials
-                  </span>
-                </div>
-              </div>
-            )}
 
             <form onSubmit={createCredential}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -744,23 +707,6 @@ const shareCredential = (credential: Credential) => {
           )}
         </div>
 
-        {/* Wallet not connected message */}
-        {!walletConnected && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-            <Wallet className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Connect Your Wallet</h3>
-            <p className="text-gray-600 mb-4">
-              Connect your MetaMask wallet to start managing credentials
-            </p>
-            <button
-              onClick={connectWallet}
-              disabled={loading}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Connecting...' : 'Connect Wallet'}
-            </button>
-          </div>
-        )}
 
         {/* Edit Asset Modal */}
         {editingAsset && (

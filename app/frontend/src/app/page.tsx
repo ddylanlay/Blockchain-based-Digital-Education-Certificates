@@ -1,5 +1,79 @@
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { WalletService } from '../services/walletService';
 import FabricAssetManager from '@/components/FabricAssetManager';
 
 export default function Page() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const [hasRedirected, setHasRedirected] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkWalletConnection = async () => {
+      // Only run on client side
+      if (typeof window === 'undefined') return;
+
+
+      try {
+        // Check localStorage for explicit connection state
+        const isWalletConnected = localStorage.getItem('walletConnected') === 'true';
+        const walletAddress = localStorage.getItem('walletAddress');
+
+        if (isWalletConnected && walletAddress) {
+          // Double-check with WalletService
+          const walletService = new WalletService();
+          const hasAccounts = await walletService.checkConnection();
+
+          if (hasAccounts) {
+            setIsConnected(true);
+          } else {
+            // Clear invalid connection state
+            localStorage.removeItem('walletConnected');
+            localStorage.removeItem('walletAddress');
+            router.push('/login');
+          }
+        } else {
+          // No connection state, redirect to login (only once)
+          if (!hasRedirected) {
+            console.log('No wallet connection found, redirecting to login');
+            setHasRedirected(true);
+            router.push('/login');
+          }
+        }
+      } catch (error) {
+        console.log('No wallet connection, redirecting to login');
+        // Clear any invalid state
+        localStorage.removeItem('walletConnected');
+        localStorage.removeItem('walletAddress');
+        if (!hasRedirected) {
+          setHasRedirected(true);
+          router.push('/login');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkWalletConnection();
+  }, [router, hasRedirected]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking wallet connection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isConnected) {
+    return null; // Will redirect to login
+  }
+
   return <FabricAssetManager />;
 }

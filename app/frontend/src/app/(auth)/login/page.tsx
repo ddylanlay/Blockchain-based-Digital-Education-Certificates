@@ -1,132 +1,207 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Shield, User, GraduationCap } from "lucide-react"
-
-const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+import React, { useState, useEffect } from 'react';
+import { Wallet, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { WalletService } from '../../../services/walletService';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [userType, setUserType] = useState<"student" | "university">("student")
-  const [selectedDemo, setSelectedDemo] = useState<string>("")
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+  const [walletService] = useState(new WalletService());
+  const router = useRouter();
 
-  const demoUsers = {
-    student: [
-      { id: "S123", name: "Alice Johnson", department: "Computer Science" },
-      { id: "S124", name: "Bob Smith", department: "Mathematics" },
-      { id: "S125", name: "Carol Wilson", department: "Physics" }
-    ],
-    university: [
-      { id: "ADMIN001", name: "Dr. Emily Davis", role: "CS Department Admin" },
-      { id: "ADMIN002", name: "Prof. Michael Brown", role: "Registrar Office" },
-      { id: "ADMIN003", name: "Sarah Johnson", role: "Certificate Authority" }
-    ]
-  }
+  useEffect(() => {
+    setIsClient(true);
 
-  const handleLogin = () => {
-    if (!selectedDemo) return
+    // Only run on client side
+    if (typeof window === 'undefined') return;
 
-    if (userType === "student") {
-      router.push(`/dashboard?student=${selectedDemo}`)
-    } else {
-      router.push(`/admin?admin=${selectedDemo}`)
+    // Check if already connected to our app
+    const checkExistingConnection = async () => {
+      try {
+        // Check localStorage for explicit connection state
+        const isWalletConnected = localStorage.getItem('walletConnected') === 'true';
+        const walletAddress = localStorage.getItem('walletAddress');
+
+        if (isWalletConnected && walletAddress) {
+          // Already connected to our app, redirect to main page
+          console.log('User already connected, redirecting to main app');
+          router.push('/');
+        } else {
+          console.log('No app connection found, staying on login page');
+        }
+      } catch (error) {
+        console.log('No existing wallet connection');
+      }
+    };
+
+    checkExistingConnection();
+  }, [walletService, router]);
+
+  const connectWallet = async () => {
+    if (!isClient) return;
+
+    setIsConnecting(true);
+    setError(null);
+
+    try {
+      console.log('🔄 Connecting to MetaMask...');
+
+      // Connect to MetaMask
+      const address = await walletService.connectWallet();
+
+      console.log('✅ Wallet connected:', address);
+
+      // Store connection state in localStorage
+      localStorage.setItem('walletConnected', 'true');
+      localStorage.setItem('walletAddress', address);
+
+      // Redirect to main page
+      router.push('/');
+
+    } catch (error) {
+      console.error('❌ Wallet connection failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to connect wallet');
+    } finally {
+      setIsConnecting(false);
     }
+  };
+
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center px-4">
-      <Card className="mx-auto max-w-md w-full">
-        <CardHeader>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        {/* Header */}
+        <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Shield className="h-8 w-8 text-primary" />
+            <div className="bg-blue-600 p-3 rounded-full">
+              <Wallet className="w-8 h-8 text-white" />
+            </div>
           </div>
-          <CardTitle className="text-2xl text-center">CertChain</CardTitle>
-          <CardDescription className="text-center">
-            Choose your role to access the blockchain certificate system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div className="grid gap-3">
-              <Label htmlFor="userType">I am a:</Label>
-              <RadioGroup value={userType} onValueChange={(value) => setUserType(value as "student" | "university")}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="student" id="student" />
-                  <Label htmlFor="student" className="flex items-center cursor-pointer">
-                    <GraduationCap className="mr-2 h-4 w-4" />
-                    Student
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="university" id="university" />
-                  <Label htmlFor="university" className="flex items-center cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    University Admin
-                  </Label>
-                </div>
-              </RadioGroup>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Credential Wallet
+          </h1>
+          <p className="text-gray-600">
+            Connect your MetaMask wallet to access your credentials
+          </p>
+        </div>
+
+        {/* Login Card */}
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="space-y-6">
+            {/* MetaMask Info */}
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Connect with MetaMask
+              </h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Your wallet is your secure gateway to your blockchain credentials
+              </p>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="demoUser">Select User:</Label>
-              <Select value={selectedDemo} onValueChange={setSelectedDemo}>
-                <SelectTrigger>
-                  <SelectValue placeholder={`Select a demo ${userType}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {demoUsers[userType].map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} ({user.id})
-                      {userType === "student" ? ` - ${(user as any).department}` : ` - ${(user as any).role}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Error Display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-red-800 font-medium">Connection Failed</p>
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              </div>
+            )}
 
-            <Button 
-              onClick={handleLogin} 
-              className="w-full" 
-              disabled={!selectedDemo}
+            {/* Connect Button */}
+            <button
+              onClick={connectWallet}
+              disabled={isConnecting}
+              className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-lg font-semibold transition-all duration-200 ${
+                isConnecting
+                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+              }`}
             >
-              Try as {userType === "student" ? "Student" : "University Admin"}
-            </Button>
-          </div>
-
-          <div className="mt-6 p-4 bg-muted rounded-lg">
-            <h4 className="font-medium text-sm mb-2">{capitalise(userType)} Flow:</h4>
-            <div className="text-xs text-muted-foreground space-y-1">
-              {userType === "student" ? (
-                <div>
-                  <p>• View your existing certificates</p>
-                  <p>• Request new certificates</p>
-                  <p>• Check certificate status</p>
-                </div>
+              {isConnecting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Connecting...</span>
+                </>
               ) : (
-                <div>
-                  <p>• View pending certificate requests</p>
-                  <p>• Approve and issue certificates</p>
-                  <p>• Manage certificate database</p>
-                </div>
+                <>
+                  <Wallet className="w-5 h-5" />
+                  <span>Connect MetaMask Wallet</span>
+                </>
               )}
+            </button>
+
+            {/* Features */}
+            <div className="space-y-3 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                <span>Secure wallet-based authentication</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                <span>Your credentials stay in your control</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                <span>Blockchain-verified authenticity</span>
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="mt-4 text-center text-sm">
-            <Link href="/" className="underline text-muted-foreground">
-              Back to home
-            </Link>
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <p className="text-sm text-gray-500">
+            Don't have MetaMask?{' '}
+            <a
+              href="https://metamask.io/download/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Download here
+            </a>
+          </p>
+        </div>
+
+        {/* MetaMask Not Detected Warning */}
+        {typeof window !== 'undefined' && !window.ethereum && (
+          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-yellow-800 font-medium">MetaMask Not Detected</p>
+                <p className="text-yellow-700 text-sm mt-1">
+                  Please install MetaMask browser extension to continue.
+                </p>
+                <a
+                  href="https://metamask.io/download/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-2 text-blue-600 hover:text-blue-700 font-medium text-sm"
+                >
+                  Install MetaMask →
+                </a>
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
-  )
+  );
 }
 
