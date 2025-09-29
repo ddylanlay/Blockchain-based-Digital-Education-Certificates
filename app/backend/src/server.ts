@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { ethers } from 'ethers';
 import { Request, Response, NextFunction } from 'express';
+import { createCredentialHash, verifyCredentialHash, ensureConnection } from './fabric';
 
 // request interface for wallet address
 declare global {
@@ -49,6 +50,7 @@ const verifyWalletSignature = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+
 // middleware
 app.use(cors());
 app.use(express.json());
@@ -92,22 +94,23 @@ app.post('/api/assets', verifyWalletSignature, async (req, res) => {
       .substring(0, 32);
     const txHash = `0x${initial_txHash}`;
 
-    // Store only hash and metadata on blockchain
-    // For now, we'll simulate this with a simple response
-    // In real implementation, you'd call your Fabric chaincode here
+    // Store ONLY hash and metadata on blockchain (no personal details)
+    await createCredentialHash(id, hash, walletAddress, 'university-wallet', new Date().toISOString(), 'issued');
 
-    console.log(`✅ Credential hash ${id} stored on blockchain by wallet: ${walletAddress}`);
+    console.log(`✅ Credential hash ${id} stored on blockchain`);
     console.log(`📊 Hash: ${hash}`);
-    console.log(`🔐 Signature: ${signature}`);
+    console.log(`👤 Student wallet: ${walletAddress}`);
+    console.log(`🏛️ University wallet: university-wallet`);
 
     res.status(201).json({
       success: true,
-      message: 'Credential hash stored successfully',
+      message: 'Credential hash stored successfully on blockchain',
       data: {
         id,
         txHash,
         hash,
-        createdBy: walletAddress,
+        studentWallet: walletAddress,
+        universityWallet: 'university-wallet',
         storedOn: 'blockchain'
       }
     });
@@ -124,6 +127,8 @@ app.post('/api/assets', verifyWalletSignature, async (req, res) => {
 // Verify credential hash
 app.post('/api/verify-credential', async (req, res) => {
   try {
+    await ensureConnection();
+
     const { id, hash, signature } = req.body;
 
     if (!id || !hash || !signature) {
@@ -137,18 +142,18 @@ app.post('/api/verify-credential', async (req, res) => {
     const message = `Store credential: ${id}`;
     const recoveredAddress = ethers.verifyMessage(message, signature);
 
-    // For now, we'll assume the hash is valid
-    // In real implementation, you'd check against blockchain
-    const isValid = recoveredAddress && hash;
+    // Verify hash against blockchain
+    const hashVerification = await verifyCredentialHash(id, hash);
 
     res.json({
       success: true,
-      valid: isValid,
+      valid: hashVerification.isValid,
       data: {
         id,
         hash,
         verifiedBy: recoveredAddress,
-        verifiedAt: new Date().toISOString()
+        verifiedAt: new Date().toISOString(),
+        blockchainVerification: hashVerification
       }
     });
   } catch (error) {
@@ -202,5 +207,7 @@ app.listen(PORT, () => {
   console.log(`📊 API endpoints available at http://localhost:${PORT}/api/*`);
   console.log(`�� Health check: http://localhost:${PORT}/health`);
 });
+
+
 
 export default app;

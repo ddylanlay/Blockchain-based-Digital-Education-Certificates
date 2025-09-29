@@ -39,61 +39,19 @@ export async function initFabric(): Promise<void> {
     // Create gRPC connection
     const peerEndpoint = 'localhost:7051'; // peer node's network address
     const peerHostAlias = 'peer0.org1.example.com'; // TLS hostname override
-    const tlsCertPath = path.resolve(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      'fabric-samples',
-      'test-network',
-      'organizations',
-      'peerOrganizations',
-      'org1.example.com',
-      'peers',
-      'peer0.org1.example.com',
-      'tls',
-      'ca.crt'
-    ); // path to peer tls certificate to establish secure TLS connection
+    const tlsCertPath = path.resolve(__dirname, '../../blockchain/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt');
 
     const tlsRootCert = fs.readFileSync(tlsCertPath); // reads TLS cert file from disk -> uses cert data to verify peer's identity
-    const tlsCredentials = grpc.credentials.createSsl(tlsRootCert); // enables encrypted comms between our app and fabric peer
+    const tlsCredentials = grpc.credentials.createSsl(tlsRootCert, null, null, {
+      checkServerIdentity: () => undefined, // Disable certificate verification for development
+    }); // enables encrypted comms between our app and fabric peer
     const client = new grpc.Client(peerEndpoint, tlsCredentials, {
       'grpc.ssl_target_name_override': peerHostAlias,
     }); // creates gRPC client with TLS credentials and hostname override (since we're using localhost instead of cert's hostname)
 
     // Create identity and signer
-    const certPath = path.resolve(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      'fabric-samples',
-      'test-network',
-      'organizations',
-      'peerOrganizations',
-      'org1.example.com',
-      'users',
-      'User1@org1.example.com',
-      'msp',
-      'signcerts',
-      'User1@org1.example.com-cert.pem'
-    ); // path to user certificate -> identity cert to prove who we are to the Fabric network ( pre created test user)
-    const keyPath = path.resolve(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      'fabric-samples',
-      'test-network',
-      'organizations',
-      'peerOrganizations',
-      'org1.example.com',
-      'users',
-      'User1@org1.example.com',
-      'msp',
-      'keystore',
-      'priv_sk'
-    ); // path to user private key -> identity key to sign transactions ( pre created test user)
+    const certPath = path.resolve(__dirname, '../../blockchain/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem');
+    const keyPath = path.resolve(__dirname, '../../blockchain/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/keystore/priv_sk');
 
     const identity = await newIdentity(certPath, mspId); // creates identity object with cert path and msp id
     const signer = await newSigner(keyPath); // creates signer object from private key
@@ -144,6 +102,76 @@ async function newSigner(keyPath: string): Promise<Signer> {
   return signers.newPrivateKeySigner(privateKey);
 }
 
+export async function createCredentialHash(
+  id: string,
+  hash: string,
+  studentWallet: string,
+  universityWallet: string,
+  issueDate: string,
+  status: string
+): Promise<void> {
+  if (!contract) {
+    throw new Error('Fabric connection not established');
+  }
+
+  try {
+    await contract.submitTransaction(
+      'StoreCredentialHash',
+      id,
+      hash,
+      studentWallet,
+      universityWallet,
+      issueDate,
+      status
+    );
+    console.log(`✅ Credential hash ${id} created successfully`);
+  } catch (error) {
+    console.error(`❌ Failed to create credential hash ${id}:`, error);
+    throw error;
+  }
+}
+
+export async function getCredentialHash(id: string): Promise<any> {
+  if (!contract) {
+    throw new Error('Fabric connection not established');
+  }
+
+  try {
+    const result = await contract.evaluateTransaction('GetCredentialHash', id);
+    return JSON.parse(result.toString());
+  } catch (error) {
+    console.error(`❌ Failed to get credential hash ${id}:`, error);
+    throw error;
+  }
+}
+
+export async function verifyCredentialHash(id: string, providedHash: string): Promise<any> {
+  if (!contract) {
+    throw new Error('Fabric connection not established');
+  }
+
+  try {
+    const result = await contract.evaluateTransaction('VerifyCredentialHash', id, providedHash);
+    return JSON.parse(result.toString());
+  } catch (error) {
+    console.error(`❌ Failed to verify credential hash ${id}:`, error);
+    throw error;
+  }
+}
+
+export async function getAllCredentialHashes(): Promise<any[]> {
+  if (!contract) {
+    throw new Error('Fabric connection not established');
+  }
+
+  try {
+    const result = await contract.evaluateTransaction('GetAllCredentialHashes');
+    return JSON.parse(result.toString());
+  } catch (error) {
+    console.error('❌ Failed to get all credential hashes:', error);
+    throw error;
+  }
+}
 /**
  * Disconnect from the Fabric gateway
  */
@@ -166,7 +194,7 @@ export async function disconnectFabric(): Promise<void> {
 /**
  * Ensure we have an active connection to Fabric
  */
-async function ensureConnection(): Promise<Contract> {
+export async function ensureConnection(): Promise<Contract> {
   if (!isConnected || !contract) {
     await initFabric();
   }

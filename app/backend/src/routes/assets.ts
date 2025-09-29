@@ -14,7 +14,7 @@ import { verifyWallet } from './auth';
 const assets = new Hono();
 
 assets.get('/', async (c) => {
-    const allAssets = await getAllAssets(); 
+    const allAssets = await getAllAssets();
     return c.json({ success: true, data: allAssets, count: allAssets.length });
 });
 

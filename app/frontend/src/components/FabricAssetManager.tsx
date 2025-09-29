@@ -65,11 +65,25 @@ export default function FabricAssetManager() {
       const result: ApiResponse<Asset[]> = await response.json();
 
       if (result.success) {
-        console.log('✅ Fresh assets from blockchain:', result.data?.map(a => a.id));
-        setAssets(result.data || []);
+        // Map uppercase field names to lowercase for consistency
+        const mappedAssets = (result.data || []).map((asset: any) => ({
+          id: asset.ID || asset.id,
+          owner: asset.Owner || asset.owner,
+          department: asset.department,
+          academicYear: asset.AcademicYear || asset.academicYear,
+          startDate: asset.StartDate || asset.startDate,
+          endDate: asset.EndDate || asset.endDate,
+          certificateType: asset.CertificateType || asset.certificateType,
+          issueDate: asset.IssueDate || asset.issueDate,
+          status: asset.Status || asset.status,
+          txHash: asset.TxHash || asset.txHash || ""
+        }));
+
+        console.log('✅ Fresh assets from blockchain:', mappedAssets.map(a => a.id));
+        setAssets(mappedAssets);
 
         // Clear any stale data
-        if (result.data?.length === 0) {
+        if (mappedAssets.length === 0) {
           console.log('�� No assets found in blockchain - clearing local state');
         }
       } else {
@@ -423,6 +437,43 @@ const verifyCredential = async (credential: Credential) => {
     alert('Credential copied to clipboard!');
   };
 
+  const verifyCredentialHash = async (credential: Credential) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/verify-credential`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: credential.id,
+          hash: credential.hash,
+          signature: credential.signature
+        }),
+      });
+
+      const result: ApiResponse<any> = await response.json();
+
+      if (result.success && result.valid) {
+        console.log('✅ Credential hash verified on blockchain');
+        return {
+          isValid: true,
+          verification: result.data.blockchainVerification
+        };
+      } else {
+        console.log('❌ Credential hash verification failed');
+        return {
+          isValid: false,
+          reason: result.error
+        };
+      }
+    } catch (error) {
+      console.error('❌ Hash verification error:', error);
+      return {
+        isValid: false,
+        reason: 'Verification service unavailable'
+      };
+    }
+  };
   // Logout function
   const logout = () => {
     // Redirect to dedicated logout page for clean logout process
@@ -440,10 +491,18 @@ const verifyCredential = async (credential: Credential) => {
         const storedWalletAddress = localStorage.getItem('walletAddress');
 
         if (isWalletConnected && storedWalletAddress) {
-          // Set wallet state from localStorage
-          setWalletAddress(storedWalletAddress);
-          setWalletConnected(true);
-          await loadWalletCredentials();
+          // Initialize wallet service connection
+          try {
+            const address = await walletService.connectWallet();
+            setWalletAddress(address);
+            setWalletConnected(true);
+            await loadWalletCredentials();
+          } catch (error) {
+            console.log('Failed to reconnect wallet service:', error);
+            // Clear invalid connection state
+            localStorage.removeItem('walletConnected');
+            localStorage.removeItem('walletAddress');
+          }
         }
 
         // Load blockchain assets (for display purposes)
@@ -648,6 +707,12 @@ const verifyCredential = async (credential: Credential) => {
                             title="Verify Credential"
                           >
                             <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => verifyCredentialHash(credential)}
+                            className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                          >
+                            Verify Hash
                           </button>
                         </div>
                       </td>
