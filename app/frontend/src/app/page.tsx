@@ -16,14 +16,22 @@ export default function Page() {
       // Only run on client side
       if (typeof window === 'undefined') return;
 
-
       try {
         // Check localStorage for explicit connection state
         const isWalletConnected = localStorage.getItem('walletConnected') === 'true';
         const walletAddress = localStorage.getItem('walletAddress');
+        const verifierToken = localStorage.getItem('verifier_token');
 
         if (isWalletConnected && walletAddress) {
-          // Double-check with WalletService
+          // Check if user is a verifier
+          if (verifierToken) {
+            // Verifier logged in, redirect to verifier dashboard
+            console.log('Verifier detected, redirecting to verifier dashboard');
+            router.push('/verifier-dashboard');
+            return;
+          }
+
+          // Double-check with WalletService for student
           const walletService = new WalletService();
           const hasAccounts = await walletService.checkConnection();
 
@@ -48,6 +56,8 @@ export default function Page() {
         // Clear any invalid state
         localStorage.removeItem('walletConnected');
         localStorage.removeItem('walletAddress');
+        localStorage.removeItem('verifier_token');
+        localStorage.removeItem('verifier_user');
         if (!hasRedirected) {
           setHasRedirected(true);
           router.push('/login');
@@ -65,15 +75,25 @@ export default function Page() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking wallet connection...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );
   }
 
   if (!isConnected) {
-    return null; // Will redirect to login
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
   }
 
-  return <FabricAssetManager />;
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <FabricAssetManager />
+    </div>
+  );
 }
