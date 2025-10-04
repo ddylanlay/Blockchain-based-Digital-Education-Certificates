@@ -2,11 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import { ethers } from 'ethers';
 import { Request, Response, NextFunction } from 'express';
-import { createCredentialHash, verifyCredentialHash, ensureConnection } from './fabric';
+import { createCredentialHash, verifyCredentialHash, ensureConnection, getAllAssets } from './fabric';
 import { requireVerifier, requireVerifierOrAdmin } from './middleware/roleAuth';
 import { authenticateJWT, requireVerifierJWT, requireAdminJWT } from './middleware/jwtAuth';
 import { UserService } from './services/userService';
 import { AuthService } from './services/authService';
+import { StudentService } from './services/studentService';
 
 // request interface for wallet address
 declare global {
@@ -277,11 +278,135 @@ app.post('/api/verifiers', authenticateJWT, requireAdminJWT, (req, res) => {
   }
 });
 
+// ==================== STUDENT MANAGEMENT ====================
+
+// Get available students (for verifiers to see valid student IDs)
+app.get('/api/students', authenticateJWT, requireVerifierJWT, async (req, res) => {
+  try {
+    const students = StudentService.getAllStudents().map(s => ({
+      studentId: s.studentId,
+      name: s.name,
+      department: s.department,
+      email: s.email
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: students,
+      message: `Found ${students.length} registered students`
+    });
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch students',
+      message: 'Unable to retrieve student information'
+    });
+  }
+});
+
+// Get student certificates (for wallet-based student dashboard)
+app.post('/api/student/certificates', async (req, res) => {
+  try {
+    // Use the getAllAssets function which handles JSON parsing issues
+    const assets = await getAllAssets();
+
+    // Filter for credential hash assets (department = 'CREDENTIAL_HASH')
+    const credentialAssets = assets.filter((asset: any) => asset.department === 'CREDENTIAL_HASH');
+
+    console.log(`📊 Found ${credentialAssets.length} credential assets out of ${assets.length} total assets`);
+
+    // Convert asset format to certificate format
+    const certificates = credentialAssets.map((asset: any) => {
+      console.log('🧩 Converting asset to certificate:', asset);
+      return {
+        ID: asset.id,
+        Owner: asset.owner || asset.Owner || 'Unknown Owner',
+        department: 'CREDENTIAL', // Fixed department name
+        academicYear: asset.academicYear || asset.AcademicYear, // This contains the hash
+        joinDate: asset.startDate || asset.StartDate,
+        endDate: asset.endDate || asset.EndDate,
+        certificateType: asset.certificateType || asset.CertificateType, // Contains student wallet
+        issueDate: asset.issueDate || asset.IssueDate,
+        status: asset.status || asset.Status,
+        txHash: asset.txHash || asset.TxHash,
+        hash: asset.academicYear || asset.AcademicYear, // Store the hash in academicYear field
+        studentWallet: asset.certificateType || asset.CertificateType // Extract student wallet
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Student certificates retrieved successfully',
+      data: certificates,
+      count: certificates.length
+    });
+  } catch (error) {
+    console.error('Error getting student certificates:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch student certificates',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Certificate verification endpoint (public)
+app.post('/api/verify-certificate', async (req, res) => {
+  try {
+    const contract = await ensureConnection();
+
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Certificate ID is required'
+      });
+    }
+
+    // Try to get the asset (certificate)
+    const result = await contract.evaluateTransaction('ReadAsset', id);
+    const asset = JSON.parse(result.toString()) as any;
+
+    if (asset.department === 'CREDENTIAL_HASH') {
+      res.status(200).json({
+        success: true,
+        message: 'Certificate verified successfully',
+        data: {
+          id: asset.id,
+          owner: asset.owner,
+          status: asset.status,
+          issueDate: asset.issueDate,
+          department: asset.certificateType,
+          hash: asset.academicYear,
+          isValid: true
+        }
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Certificate not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error verifying certificate:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to verify certificate',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // ==================== CREDENTIAL MANAGEMENT ====================
 
 // store credential hash on blockchain (VERIFIER ONLY with JWT)
 app.post('/api/assets', authenticateJWT, requireVerifierJWT, async (req, res) => {
   try {
+    // Ensure blockchain connection is established
+    await ensureConnection();
+
     const {
       id,
       studentName,
@@ -291,22 +416,36 @@ app.post('/api/assets', authenticateJWT, requireVerifierJWT, async (req, res) =>
       endDate,
       certificateType,
       hash,
+      studentId  // Add studentId to request body
     } = req.body;
 
     // validate required fields
-    if (!id || !studentName || !department || !hash) {
+    if (!id || !studentName || !department || !hash || !studentId) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: id, studentName, department, hash'
+        error: 'Missing required fields: id, studentName, department, hash, studentId'
       });
     }
 
     // Get verifier info from JWT token
     const verifierName = req.user.name;
     const university = req.user.university;
-    const walletAddress = req.user.walletAddress;
+    const verifierWallet = req.user.walletAddress;
 
-    // generate transaction hash
+    // Look up student wallet address by student ID
+    const studentWallet = StudentService.getStudentWalletById(studentId);
+    if (!studentWallet) {
+      return res.status(400).json({
+        success: false,
+        error: `Student ID ${studentId} not found. Please check the student ID.`,
+        availableStudents: StudentService.getAllStudents().map(s => ({ id: s.studentId, name: s.name }))
+      });
+    }
+
+    // Get student info for logging
+    const studentInfo = StudentService.getStudentById(studentId);
+
+    // Generate transaction hash
     const crypto = require('crypto');
     const timestamp = Date.now().toString();
     const randomBytes = crypto.randomBytes(16).toString('hex');
@@ -317,13 +456,15 @@ app.post('/api/assets', authenticateJWT, requireVerifierJWT, async (req, res) =>
     const txHash = `0x${initial_txHash}`;
 
     // Store ONLY hash and metadata on blockchain (no personal details)
-    await createCredentialHash(id, hash, walletAddress, 'university-wallet', new Date().toISOString(), 'issued');
+    await createCredentialHash(id, hash, studentWallet, verifierWallet, new Date().toISOString(), 'issued');
 
     console.log(`✅ Credential hash ${id} stored on blockchain`);
     console.log(`📊 Hash: ${hash}`);
-    console.log(`👤 Student wallet: ${walletAddress}`);
+    console.log(`👤 Student wallet: ${studentWallet}`);
+    console.log(`🎓 Student: ${studentInfo?.name} (${studentId})`);
     console.log(`🏛️ University: ${university}`);
-    console.log(`👨‍💼 Verifier: ${verifierName}`);
+    console.log(`👨‍💼 Issue Verifier wallet: ${verifierWallet}`);
+    console.log(`👨‍💼 Issue Verifier: ${verifierName}`);
 
     res.status(201).json({
       success: true,
@@ -332,8 +473,10 @@ app.post('/api/assets', authenticateJWT, requireVerifierJWT, async (req, res) =>
         id,
         txHash,
         hash,
-        studentWallet: walletAddress,
-        universityWallet: 'university-wallet',
+        studentId,
+        studentWallet,
+        studentName: studentInfo?.name,
+        verifierWallet,
         verifier: verifierName,
         university: university,
         storedOn: 'blockchain'

@@ -22,6 +22,11 @@ export default function Page() {
         const walletAddress = localStorage.getItem('walletAddress');
         const verifierToken = localStorage.getItem('verifier_token');
 
+        console.log('🔍 Home page wallet check:');
+        console.log('  - isWalletConnected:', isWalletConnected);
+        console.log('  - walletAddress:', walletAddress);
+        console.log('  - verifierToken:', verifierToken ? 'present' : 'not present');
+
         if (isWalletConnected && walletAddress) {
           // Check if user is a verifier
           if (verifierToken) {
@@ -31,7 +36,25 @@ export default function Page() {
             return;
           }
 
-          // Double-check with WalletService for student
+          // Check if this wallet belongs to a registered student
+          const studentWallets = [
+            '0x31078896C920EA1d5aADdar8270D44F6e46AF1a426'.toLowerCase(),
+            '0x31078896C920EA1d5aAD8270D44F6e46AF1a426'.toLowerCase() // Correct spelling
+          ];
+          const isStudentWallet = studentWallets.includes(walletAddress.toLowerCase());
+
+          console.log('Checking wallet address:', walletAddress.toLowerCase());
+          console.log('Student wallets:', studentWallets);
+          console.log('Is student wallet:', isStudentWallet);
+
+          if (isStudentWallet) {
+            // Redirect student to student dashboard
+            console.log('Student detected, redirecting to wallet student dashboard');
+            router.push('/wallet-student-dashboard');
+            return;
+          }
+
+          // Double-check with WalletService for other users
           const walletService = new WalletService();
           const hasAccounts = await walletService.checkConnection();
 

@@ -87,7 +87,27 @@ export default function LoginPage() {
         localStorage.setItem('walletConnected', 'true');
         localStorage.setItem('walletAddress', address);
         console.log('✅ Student wallet connected:', address);
-        router.push('/');
+
+        // Check if this wallet belongs to a registered student
+        const studentWallets = [
+          '0x31078896C920EA1d5aADdar8270D44F6e46AF1a426'.toLowerCase(),
+          '0x31078896C920EA1d5aAD8270D44F6e46AF1a426'.toLowerCase(), // Correct spelling
+          '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6'.toLowerCase() // Admin wallet too
+        ];
+        const isStudentWallet = studentWallets.includes(address.toLowerCase());
+
+        console.log('Login - Checking wallet address:', address.toLowerCase());
+        console.log('Login - Student wallets:', studentWallets);
+        console.log('Login - Is student wallet:', isStudentWallet);
+
+        if (isStudentWallet) {
+          // This is a student wallet - redirect to student dashboard
+          console.log('Login - Student detected, redirecting to wallet student dashboard');
+          router.push('/wallet-student-dashboard');
+        } else {
+          // Default redirect to home
+          router.push('/');
+        }
       }
 
     } catch (error) {

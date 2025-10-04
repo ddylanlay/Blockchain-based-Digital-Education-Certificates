@@ -38,4 +38,17 @@ export class Asset {
 
     @Property()
     public txHash: string = '';
+
+    // New fields for RBAC tracking
+    @Property()
+    public createdBy?: string;
+
+    @Property()
+    public createdAt?: string;
+
+    @Property()
+    public updatedBy?: string;
+
+    @Property()
+    public updatedAt?: string;
 }

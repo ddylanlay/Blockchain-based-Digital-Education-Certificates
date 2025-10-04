@@ -1,0 +1,24 @@
+// Simple test script to verify chaincode deployment
+console.log('🧪 Testing chaincode deployment...');
+console.log('');
+console.log('This script will test the chaincode by running a backend test.');
+console.log('Please run the following command instead:');
+console.log('');
+console.log('cd backend');
+console.log('npx ts-node -e "');
+console.log('import { createCredentialHash, ensureConnection } from \'./src/fabric\';');
+console.log('async function test() {');
+console.log('  try {');
+console.log('    await ensureConnection();');
+console.log('    console.log(\'✅ Fabric connection established\');');
+console.log('    const testId = `test-credential-${Date.now()}`;');
+console.log('    await createCredentialHash(testId, \'0x1234\', \'student\', \'university\', new Date().toISOString(), \'issued\');');
+console.log('    console.log(\'✅ SUCCESS: CredentialHashContract is working!\');');
+console.log('  } catch (error) {');
+console.log('    console.error(\'❌ FAILED:\', error.message);');
+console.log('  }');
+console.log('}');
+console.log('test();');
+console.log('"');
+console.log('');
+console.log('Or simply try creating a credential in the web interface now!');
