@@ -260,7 +260,7 @@ Update only the status of a credential asset.
 ```json
 {
   "signature": "0x...",
-  "message": "Authentication message", 
+  "message": "Authentication message",
   "walletAddress": "0x...",
   "status": "issued"
 }
@@ -569,10 +569,21 @@ Both authentication servers interface with the same Hyperledger Fabric blockchai
 
 ### Server Architecture
 
-- **Wallet Auth Server (Port 3000)**: Uses Ethereum wallet signatures for authentication
-- **MSP Auth Server (Port 3002)**: Uses Fabric MSP certificates for role-based authentication
+- **Wallet Auth Server (Port 3000)**: Uses Ethereum wallet signatures for **decentralized authentication**
+- **MSP Auth Server (Port 3002)**: Uses Fabric MSP certificates for **centralized role-based authentication**
 
-Both servers access the same blockchain data but provide different authentication mechanisms for different use cases.
+Both servers access the same blockchain data but provide fundamentally different authentication approaches:
+
+#### Decentralization Comparison
+
+| Aspect | Wallet Auth (Port 3000) | MSP Auth (Port 3002) |
+|--------|-------------------------|----------------------|
+| **Control** | User controls private key | University controls certificates |
+| **Authority** | No central authority | University CA is central authority |
+| **Access** | Permissionless | Permissioned (university approval required) |
+| **Identity** | Self-sovereign (wallet address) | Institution-managed (username/password) |
+| **Registration** | Not required | Must be registered with university |
+| **Revocation** | User controls | University can revoke access |
 - **Peer:** peer0.org1.example.com:7051
 
 All asset operations are recorded immutably on the blockchain, providing:
@@ -590,14 +601,18 @@ All asset operations are recorded immutably on the blockchain, providing:
 **Use Wallet Authentication (Port 3000) when:**
 - Building web3 applications
 - Users have Ethereum wallets (MetaMask, etc.)
-- You want decentralized authentication
+- You want **truly decentralized authentication** (no central authority)
 - Students need to connect their own wallets
+- You want **permissionless access** (no university registration required)
+- Users control their own identity and private keys
 
 **Use MSP Authentication (Port 3002) when:**
 - Building traditional web applications
-- You need role-based access control
-- University administrators need centralized management
+- You need **centralized role-based access control**
+- University administrators need **institutional control** over access
 - You want Fabric's built-in security features
+- You need **permissioned access** (university controls who gets certificates)
+- You want **traditional username/password** authentication
 
 ### Getting Started
 
@@ -605,7 +620,7 @@ All asset operations are recorded immutably on the blockchain, providing:
    ```bash
    # Wallet authentication server
    cd app/backend && npm run dev
-   
+
    # MSP authentication server (in another terminal)
    cd app/backend && npm run dev:msp
    ```
