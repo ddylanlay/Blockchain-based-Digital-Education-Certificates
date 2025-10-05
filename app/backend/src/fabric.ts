@@ -109,7 +109,8 @@ export async function createCredentialHash(
   universityWallet: string,
   issueDate: string,
   status: string,
-  department: string
+  department: string,
+  certificateType: string
 ): Promise<void> {
   if (!contract) {
     throw new Error('Fabric connection not established');
@@ -139,12 +140,12 @@ export async function createCredentialHash(
     console.log('  - academicYear (hash):', hash);
     console.log('  - startDate:', issueDate);
     console.log('  - endDate:', issueDate);
-    console.log('  - certificateType:', 'CREDENTIAL');
+    console.log('  - certificateType:', certificateType);
     console.log('  - issueDate:', issueDate);
     console.log('  - status:', status);
     console.log('  - txHash:', txHash);
 
-    // Store the actual department name and student wallet in certificateType for filtering
+    // Store actual certificate type and use txHash field to store student wallet for filtering
     await contract.submitTransaction(
       'CreateAsset',
       id, // Asset ID
@@ -153,10 +154,10 @@ export async function createCredentialHash(
       hash, // Academic year (storing hash here)
       issueDate, // Start date
       issueDate, // End date
-      studentWallet, // Certificate type - store student wallet here so we can filter
+      certificateType, // Certificate type (actual type like "Bachelor of Science")
       issueDate, // Issue date
       status, // Status
-      txHash // Transaction hash
+      `${txHash}|${studentWallet}` // Transaction hash + student wallet for filtering
     );
     console.log(`✅ Credential hash ${id} stored as asset successfully (workaround)`);
   } catch (error) {

@@ -323,6 +323,11 @@ app.post('/api/student/certificates', async (req, res) => {
     // Convert asset format to certificate format
     const certificates = credentialAssets.map((asset: any) => {
       console.log('🧩 Converting asset to certificate:', asset);
+      // Extract student wallet from txHash field (format: "txHash|studentWallet")
+      const txHashValue = asset.txHash || asset.TxHash || '';
+      const studentWallet = txHashValue.includes('|') ? txHashValue.split('|')[1] : '';
+      const cleanTxHash = txHashValue.includes('|') ? txHashValue.split('|')[0] : txHashValue;
+
       return {
         ID: asset.id,
         Owner: asset.owner || asset.Owner || 'Unknown Owner',
@@ -330,12 +335,12 @@ app.post('/api/student/certificates', async (req, res) => {
         academicYear: asset.academicYear || asset.AcademicYear, // This contains the hash
         joinDate: asset.startDate || asset.StartDate,
         endDate: asset.endDate || asset.EndDate,
-        certificateType: asset.certificateType || asset.CertificateType, // Contains student wallet
+        certificateType: asset.certificateType || asset.CertificateType, // Actual certificate type like "Bachelor of Science"
         issueDate: asset.issueDate || asset.IssueDate,
         status: asset.status || asset.Status,
-        txHash: asset.txHash || asset.TxHash,
+        txHash: cleanTxHash, // Clean transaction hash
         hash: asset.academicYear || asset.AcademicYear, // Store the hash in academicYear field
-        studentWallet: asset.certificateType || asset.CertificateType // Extract student wallet
+        studentWallet: studentWallet // Extract student wallet from txHash field
       };
     });
 
@@ -460,7 +465,7 @@ app.post('/api/assets', authenticateJWT, requireVerifierJWT, async (req, res) =>
     const txHash = `0x${initial_txHash}`;
 
     // Store ONLY hash and metadata on blockchain (no personal details)
-    await createCredentialHash(id, hash, studentWallet, verifierWallet, new Date().toISOString(), 'issued', department);
+    await createCredentialHash(id, hash, studentWallet, verifierWallet, new Date().toISOString(), 'issued', department, certificateType);
 
     console.log(`✅ Credential hash ${id} stored on blockchain`);
     console.log(`📊 Hash: ${hash}`);
