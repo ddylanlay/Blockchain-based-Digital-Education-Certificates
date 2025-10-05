@@ -108,7 +108,8 @@ export async function createCredentialHash(
   studentWallet: string,
   universityWallet: string,
   issueDate: string,
-  status: string
+  status: string,
+  department: string
 ): Promise<void> {
   if (!contract) {
     throw new Error('Fabric connection not established');
@@ -134,7 +135,7 @@ export async function createCredentialHash(
     console.log('🔧 CreateAsset Parameters:');
     console.log('  - id:', id);
     console.log('  - owner (studentWallet):', studentWallet);
-    console.log('  - department:', 'CREDENTIAL_HASH');
+    console.log('  - department:', department);
     console.log('  - academicYear (hash):', hash);
     console.log('  - startDate:', issueDate);
     console.log('  - endDate:', issueDate);
@@ -143,13 +144,12 @@ export async function createCredentialHash(
     console.log('  - status:', status);
     console.log('  - txHash:', txHash);
 
-    // Store student wallet in the certificateType field instead of department
-    // This way we can identify which student this credential belongs to
+    // Store the actual department name and student wallet in certificateType for filtering
     await contract.submitTransaction(
       'CreateAsset',
       id, // Asset ID
-      studentWallet, // Owner (student wallet) - let's see if this actually works
-      'CREDENTIAL_HASH', // Department (using this to identify credential hashes)
+      studentWallet, // Owner (student wallet)
+      department, // Department (actual department name like "Computer Science")
       hash, // Academic year (storing hash here)
       issueDate, // Start date
       issueDate, // End date

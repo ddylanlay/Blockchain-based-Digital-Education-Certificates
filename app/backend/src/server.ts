@@ -311,8 +311,12 @@ app.post('/api/student/certificates', async (req, res) => {
     // Use the getAllAssets function which handles JSON parsing issues
     const assets = await getAllAssets();
 
-    // Filter for credential hash assets (department = 'CREDENTIAL_HASH')
-    const credentialAssets = assets.filter((asset: any) => asset.department === 'CREDENTIAL_HASH');
+    // Filter for credential assets only (they have actual department names like 'Computer Science')
+    // Exclude default assets that don't have meaningful department names
+    const credentialAssets = assets.filter((asset: any) => {
+      const dept = asset.department || asset.Department;
+      return dept && dept !== 'CREDENTIAL_HASH' && dept !== 'Unknown Department' && dept.length > 3;
+    });
 
     console.log(`📊 Found ${credentialAssets.length} credential assets out of ${assets.length} total assets`);
 
@@ -322,7 +326,7 @@ app.post('/api/student/certificates', async (req, res) => {
       return {
         ID: asset.id,
         Owner: asset.owner || asset.Owner || 'Unknown Owner',
-        department: 'CREDENTIAL', // Fixed department name
+        department: asset.department || asset.Department || 'Unknown Department', // Use actual department name
         academicYear: asset.academicYear || asset.AcademicYear, // This contains the hash
         joinDate: asset.startDate || asset.StartDate,
         endDate: asset.endDate || asset.EndDate,
@@ -456,7 +460,7 @@ app.post('/api/assets', authenticateJWT, requireVerifierJWT, async (req, res) =>
     const txHash = `0x${initial_txHash}`;
 
     // Store ONLY hash and metadata on blockchain (no personal details)
-    await createCredentialHash(id, hash, studentWallet, verifierWallet, new Date().toISOString(), 'issued');
+    await createCredentialHash(id, hash, studentWallet, verifierWallet, new Date().toISOString(), 'issued', department);
 
     console.log(`✅ Credential hash ${id} stored on blockchain`);
     console.log(`📊 Hash: ${hash}`);
