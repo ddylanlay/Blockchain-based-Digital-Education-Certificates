@@ -2,14 +2,16 @@
 
 This API provides endpoints for managing educational credentials on a Hyperledger Fabric blockchain network. The system allows creating, reading, updating, and deleting credential assets while maintaining immutable records of all transactions.
 
-## Base URL
-```
-http://localhost:3000
-```
+## Base URLs
+- **Wallet-based Authentication**: `http://localhost:3000` (Port 3000)
+- **MSP-based Authentication**: `http://localhost:3002` (Port 3002)
 
 ## Authentication
 
-Most endpoints require wallet-based authentication using Ethereum signatures. Protected endpoints require the following in the request body:
+The system supports **two distinct authentication mechanisms**:
+
+### 1. Wallet-Based Authentication (Port 3000)
+Uses Ethereum wallet signatures for authentication. Protected endpoints require the following in the request body:
 
 ```json
 {
@@ -20,10 +22,56 @@ Most endpoints require wallet-based authentication using Ethereum signatures. Pr
 }
 ```
 
+**Example Request:**
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "signature": "0x1234567890abcdef...",
+    "message": "Sign this message to authenticate",
+    "walletAddress": "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6"
+  }'
+```
+
+### 2. MSP-Based Authentication (Port 3002)
+Uses Hyperledger Fabric MSP (Membership Service Provider) certificates for authentication. This provides role-based access control with built-in blockchain-level security.
+
+**Example Request:**
+```bash
+curl -X POST http://localhost:3002/api/msp/login \
+  -H "Content-Type: application/json" \
+  -H "X-MSP-ID": "UniversityCAMSP" \
+  -d '{
+    "username": "admin",
+    "password": "adminpw"
+  }'
+```
+
+**Headers Required:**
+- `X-MSP-ID`: The MSP organization identifier (e.g., `UniversityCAMSP`, `StudentMSP`)
+
+### Authentication Mechanism Mapping
+
+| Endpoint Category | Wallet Auth (Port 3000) | MSP Auth (Port 3002) |
+|-------------------|-------------------------|----------------------|
+| Health Check | ✅ `/health` | ✅ `/health` |
+| User Authentication | ✅ `/api/auth/*` | ✅ `/api/msp/*` |
+| Asset Management | ✅ `/api/assets/*` | ✅ `/api/msp/assets/*` |
+| Student Certificates | ✅ `/api/student/*` | ✅ `/api/msp/student/*` |
+| Certificate Verification | ✅ `/api/verify-*` | ✅ `/api/msp/verify-*` |
+
+> **📋 For detailed MSP authentication guidance**, see [MSP_RBAC_IMPLEMENTATION.md](../MSP_RBAC_IMPLEMENTATION.md)
+
 ## Health Check
 
 ### GET /health
 Check if the API server is running.
+
+**Available on both servers:**
+- Wallet Auth Server: `GET http://localhost:3000/health`
+- MSP Auth Server: `GET http://localhost:3002/health`
+
+**Authentication:** Not required
 
 **Response:**
 ```json
@@ -35,9 +83,9 @@ Check if the API server is running.
 
 ---
 
-## Assets Endpoints
+## Assets Endpoints (Wallet Authentication Server - Port 3000)
 
-All asset endpoints are prefixed with `/api/assets`.
+All asset endpoints are prefixed with `/api/assets` and use wallet-based authentication.
 
 ### GET /api/assets
 Get all credential assets from the blockchain.
@@ -332,23 +380,199 @@ All endpoints return consistent error responses:
 }
 ```
 
+---
+
+## MSP Authentication Endpoints (MSP Authentication Server - Port 3002)
+
+These endpoints use Hyperledger Fabric MSP certificates for authentication and provide role-based access control.
+
+### POST /api/auth/msp-login
+Authenticate using MSP credentials.
+
+**Authentication:** MSP certificate required
+
+**Headers:**
+```
+X-MSP-ID: UniversityCAMSP
+```
+
+**Request Body:**
+```json
+{
+  "username": "admin",
+  "password": "adminpw"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "MSP authentication successful",
+  "user": {
+    "username": "admin",
+    "role": "CA_ADMIN",
+    "mspId": "UniversityCAMSP"
+  }
+}
+```
+
+### GET /api/auth/seed-ca-admin
+Get seed CA admin credentials for testing.
+
+**Authentication:** Not required
+
+**Response:**
+```json
+{
+  "username": "admin",
+  "password": "adminpw",
+  "mspId": "UniversityCAMSP"
+}
+```
+
+### GET /api/auth/seed-student
+Get seed student credentials for testing.
+
+**Authentication:** Not required
+
+**Response:**
+```json
+{
+  "username": "student1",
+  "password": "studentpw",
+  "mspId": "StudentMSP"
+}
+```
+
+### POST /api/certificates
+Create a new certificate (CA Admin only).
+
+**Authentication:** MSP authentication required
+**Authorization:** CA_ADMIN role required
+
+**Headers:**
+```
+X-MSP-ID: UniversityCAMSP
+```
+
+**Request Body:**
+```json
+{
+  "studentId": "32529279",
+  "studentName": "John Smith",
+  "department": "Computer Science",
+  "academicYear": "2024",
+  "certificateType": "Bachelor of Science",
+  "issueDate": "2024-12-20"
+}
+```
+
+### GET /api/certificates
+Get all certificates (CA Admin only).
+
+**Authentication:** MSP authentication required
+**Authorization:** CA_ADMIN role required
+
+**Headers:**
+```
+X-MSP-ID: UniversityCAMSP
+```
+
+### GET /api/student/certificates
+Get certificates for the authenticated student.
+
+**Authentication:** MSP authentication required
+**Authorization:** STUDENT role required
+
+**Headers:**
+```
+X-MSP-ID: StudentMSP
+```
+
+### GET /api/certificates/:id
+Get a specific certificate by ID.
+
+**Authentication:** MSP authentication required
+**Authorization:** CA_ADMIN or STUDENT role required
+
+**Headers:**
+```
+X-MSP-ID: UniversityCAMSP (or StudentMSP)
+```
+
+### PUT /api/certificates/:id/status
+Update certificate status (CA Admin only).
+
+**Authentication:** MSP authentication required
+**Authorization:** CA_ADMIN role required
+
+**Headers:**
+```
+X-MSP-ID: UniversityCAMSP
+```
+
+**Request Body:**
+```json
+{
+  "status": "revoked",
+  "reason": "Academic misconduct"
+}
+```
+
+### DELETE /api/certificates/:id
+Delete a certificate (CA Admin only).
+
+**Authentication:** MSP authentication required
+**Authorization:** CA_ADMIN role required
+
+**Headers:**
+```
+X-MSP-ID: UniversityCAMSP
+```
+
+### POST /api/verify-certificate
+Verify a certificate (public endpoint).
+
+**Authentication:** Not required
+
+**Request Body:**
+```json
+{
+  "certificateId": "CERT-123",
+  "studentId": "32529279"
+}
+```
+
 **Common HTTP Status Codes:**
 - `200`: Success
 - `400`: Bad Request (missing required fields, invalid data)
-- `401`: Unauthorized (invalid wallet signature)
+- `401`: Unauthorized (invalid wallet signature or MSP certificate)
+- `403`: Forbidden (insufficient role permissions)
 - `404`: Not Found (asset doesn't exist)
 - `409`: Conflict (asset already exists)
 - `500`: Internal Server Error
+
+**MSP-Specific Error Codes:**
+- `401`: Invalid MSP certificate or credentials
+- `403`: Role-based access denied (e.g., STUDENT trying to access CA_ADMIN endpoint)
 
 ---
 
 ## Blockchain Integration
 
-This API interfaces with a Hyperledger Fabric blockchain network:
+Both authentication servers interface with the same Hyperledger Fabric blockchain network:
 
 - **Network:** mychannel
 - **Chaincode:** basic
 - **MSP ID:** Org1MSP
+
+### Server Architecture
+
+- **Wallet Auth Server (Port 3000)**: Uses Ethereum wallet signatures for authentication
+- **MSP Auth Server (Port 3002)**: Uses Fabric MSP certificates for role-based authentication
+
+Both servers access the same blockchain data but provide different authentication mechanisms for different use cases.
 - **Peer:** peer0.org1.example.com:7051
 
 All asset operations are recorded immutably on the blockchain, providing:
@@ -356,6 +580,43 @@ All asset operations are recorded immutably on the blockchain, providing:
 - Complete audit trail
 - Decentralized verification
 - Cryptographic proof of authenticity
+
+---
+
+## Quick Start Guide
+
+### Choosing Your Authentication Method
+
+**Use Wallet Authentication (Port 3000) when:**
+- Building web3 applications
+- Users have Ethereum wallets (MetaMask, etc.)
+- You want decentralized authentication
+- Students need to connect their own wallets
+
+**Use MSP Authentication (Port 3002) when:**
+- Building traditional web applications
+- You need role-based access control
+- University administrators need centralized management
+- You want Fabric's built-in security features
+
+### Getting Started
+
+1. **Start the servers:**
+   ```bash
+   # Wallet authentication server
+   cd app/backend && npm run dev
+   
+   # MSP authentication server (in another terminal)
+   cd app/backend && npm run dev:msp
+   ```
+
+2. **Test connectivity:**
+   ```bash
+   curl http://localhost:3000/health  # Wallet server
+   curl http://localhost:3002/health  # MSP server
+   ```
+
+3. **Choose your authentication flow** based on the examples above.
 
 ---
 
