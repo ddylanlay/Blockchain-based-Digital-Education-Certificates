@@ -18,11 +18,16 @@ logs/
 dist/
 build/
 out/
+.next/
+bin/
+builders/
 
 # IDE files
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
 
 # OS generated files
 .DS_Store
@@ -45,3 +50,60 @@ bower_components/
 *.pid
 *.seed
 *.pid.lock
+
+# Hyperledger Fabric specific
+wallet/
+crypto-config/
+channel-artifacts/
+system-genesis-block/
+organizations/
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+connection-*.json
+connection-*.yaml
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# TypeScript
+*.tsbuildinfo
+
+# Next.js
+.next/
+out/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Local development
+.local/
+.cache/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.backup
+*.old
+
+# Certificate files
+*.pem
+*.crt
+*.key
+*.p12
+*.jks
+
+# Configuration files with sensitive data
+config/local.json
+config/production.json
+config/development.json
+
+# WSL specific
+.wslconfig
