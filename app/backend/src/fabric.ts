@@ -279,6 +279,11 @@ export async function getAllAssets(): Promise<Asset[]> {
     let resultStr = result.toString();
     console.log('================ RAW GetAllAssets result ================\n' + resultStr + '\n========================================================');
 
+    // Add debugging to see the raw structure
+    console.log('🔍 DEBUG: Raw resultStr type:', typeof resultStr);
+    console.log('🔍 DEBUG: Raw resultStr length:', resultStr.length);
+    console.log('🔍 DEBUG: First 200 chars:', resultStr.substring(0, 200));
+
     let assets;
     try {
       // Check if the result is a comma-separated list of ASCII values
@@ -330,21 +335,26 @@ export async function getAllAssets(): Promise<Asset[]> {
       console.log('\n📊 Current Assets:');
       console.log('==================');
       const formattedAssets = assets.map(asset => ({
-        id: asset.id,
-        owner: asset.owner,
-        department: asset.department,
-        academicYear: asset.academicYear,
-        startDate: asset.startDate,
-        endDate: asset.endDate,
-        certificateType: asset.certificateType,
-        issueDate: asset.issueDate,
-        status: asset.status,
-        txHash: asset.txHash || ""
+        id: asset.ID || asset.id,
+        owner: asset.Owner || asset.owner,
+        department: asset.department || asset.Department,
+        academicYear: asset.academicYear || asset.AcademicYear,
+        startDate: asset.startDate || asset.StartDate || asset.joinDate || asset.JoinDate,
+        endDate: asset.endDate || asset.EndDate,
+        certificateType: asset.certificateType || asset.CertificateType,
+        issueDate: asset.issueDate || asset.IssueDate,
+        status: asset.status || asset.Status,
+        txHash: asset.txHash || asset.TxHash || ""
       }));
       console.log(JSON.stringify(formattedAssets, null, 2));
       console.log('==================\n');
+
+      // Return the formatted assets instead of raw assets
+      return formattedAssets;
     }
-    return assets;
+
+    // Return empty array if no assets
+    return [];
   } catch (error) {
     console.error('❌ Failed to get all assets:', error);
     throw new Error(`Failed to get all assets: ${error}`);

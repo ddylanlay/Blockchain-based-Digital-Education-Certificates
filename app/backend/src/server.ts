@@ -311,6 +311,15 @@ app.post('/api/student/certificates', async (req, res) => {
     // Use the getAllAssets function which handles JSON parsing issues
     const assets = await getAllAssets();
 
+    // Add debugging to see what getAllAssets returns
+    console.log('🔍 DEBUG: getAllAssets returned:', assets.length, 'assets');
+    if (assets.length > 0) {
+      console.log('🔍 DEBUG: First asset from getAllAssets:', assets[0]);
+      console.log('🔍 DEBUG: First asset keys:', Object.keys(assets[0]));
+      console.log('🔍 DEBUG: First asset.id =', assets[0].id);
+      console.log('🔍 DEBUG: First asset.owner =', assets[0].owner);
+    }
+
     // Filter for credential assets only (they have actual department names like 'Computer Science')
     // Exclude default assets that don't have meaningful department names
     const credentialAssets = assets.filter((asset: any) => {

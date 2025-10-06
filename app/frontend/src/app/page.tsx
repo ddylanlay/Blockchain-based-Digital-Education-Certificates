@@ -36,23 +36,8 @@ export default function Page() {
             return;
           }
 
-          // Check if this wallet belongs to a registered student
-          const studentWallets = [
-            '0x31078896C920EA1d5aADdar8270D44F6e46AF1a426'.toLowerCase(),
-            '0x31078896C920EA1d5aAD8270D44F6e46AF1a426'.toLowerCase() // Correct spelling
-          ];
-          const isStudentWallet = studentWallets.includes(walletAddress.toLowerCase());
-
-          console.log('Checking wallet address:', walletAddress.toLowerCase());
-          console.log('Student wallets:', studentWallets);
-          console.log('Is student wallet:', isStudentWallet);
-
-          if (isStudentWallet) {
-            // Redirect student to student dashboard
-            console.log('Student detected, redirecting to wallet student dashboard');
-            router.push('/wallet-student-dashboard');
-            return;
-          }
+          // Students will stay on the main page (Credential Wallet Manager)
+          // No need to redirect - they can view their certificates here
 
           // Double-check with WalletService for other users
           const walletService = new WalletService();

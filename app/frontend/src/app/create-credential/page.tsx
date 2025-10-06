@@ -92,7 +92,7 @@ export default function CreateCredentialPage() {
     if (name === 'studentName' || name === 'department') {
       const updatedData = { ...formData, [name]: value };
       if (updatedData.studentName && updatedData.department) {
-        const id = `CERT-${updatedData.studentName.replace(/\s+/g, '').toUpperCase()}-${updatedData.department.replace(/\s+/g, '').toUpperCase()}-${Date.now()}`;
+        const id = `CERT-${crypto.randomUUID()}`;
         setFormData(prev => ({ ...prev, id, [name]: value }));
       }
     }

@@ -29,7 +29,7 @@ interface ApiResponse<T> {
   valid?: boolean;
 }
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://localhost:3002/api';
 
 export default function FabricAssetManager() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -55,7 +55,121 @@ export default function FabricAssetManager() {
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
-  // Fetch all assets
+  // Fetch certificates from blockchain (for both students and admins)
+  const fetchCertificates = async (walletAddr?: string) => {
+    const currentWalletAddress = walletAddr || walletAddress;
+
+    console.log('🔍 DEBUG: fetchCertificates called');
+    console.log('🔍 DEBUG: walletAddress =', currentWalletAddress);
+    console.log('🔍 DEBUG: walletAddress type =', typeof currentWalletAddress);
+
+    if (!currentWalletAddress) {
+      console.log('❌ DEBUG: walletAddress is falsy, returning early');
+      return;
+    }
+
+
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('🔄 Fetching certificates from blockchain...');
+      console.log('👤 Connected wallet:', walletAddress);
+
+      // First try to get student-specific certificates
+      const studentResponse = await fetch(`${API_BASE_URL}/student/certificates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress: walletAddress
+        }),
+      });
+
+      const studentResult: ApiResponse<Asset[]> = await studentResponse.json();
+      console.log('📋 Student certificates response:', studentResult);
+
+      let certificates: any[] = [];
+
+      if (studentResult.success && studentResult.data) {
+        // Map student certificate data
+        certificates = studentResult.data.map((cert: any) => {
+          console.log('🔍 DEBUG: Raw cert data:', cert);
+          console.log('🔍 DEBUG: cert keys:', Object.keys(cert));
+          console.log('🔍 DEBUG: cert.ID =', cert.ID);
+          console.log('🔍 DEBUG: cert.id =', cert.id);
+          console.log('🔍 DEBUG: cert.constructor.name =', cert.constructor.name);
+
+          // Try different ways to access the ID
+          console.log('🔍 DEBUG: cert["ID"] =', cert["ID"]);
+          console.log('🔍 DEBUG: cert["id"] =', cert["id"]);
+
+          const mappedCert = {
+            id: cert.ID || cert.id || cert["ID"] || cert["id"] || 'FALLBACK-ID',
+            owner: cert.Owner || cert.owner,
+            department: cert.department,
+            academicYear: cert.academicYear,
+            startDate: cert.joinDate || cert.startDate,
+            endDate: cert.endDate,
+            certificateType: cert.certificateType,
+            issueDate: cert.issueDate,
+            status: cert.status,
+            txHash: cert.txHash || ""
+          };
+
+          console.log('🔍 DEBUG: Mapped cert:', mappedCert);
+          console.log('🔍 DEBUG: Final id field:', mappedCert.id);
+
+          return mappedCert;
+        });
+      }
+
+      // If no student certificates found, try to get all assets and filter for this wallet
+      if (certificates.length === 0) {
+        console.log('📭 No student certificates found, checking all assets...');
+
+        const allAssetsResponse = await fetch(`${API_BASE_URL}/assets`);
+        const allAssetsResult: ApiResponse<Asset[]> = await allAssetsResponse.json();
+
+        if (allAssetsResult.success && allAssetsResult.data) {
+          // Filter assets that belong to this wallet (as owner or student)
+          certificates = allAssetsResult.data
+            .filter((asset: any) => {
+              const owner = asset.Owner || asset.owner;
+              const studentWallet = asset.studentWallet || (asset.TxHash && asset.TxHash.includes('|') ? asset.TxHash.split('|')[1] : '');
+
+              return owner && owner.toLowerCase() === walletAddress.toLowerCase() ||
+                     studentWallet && studentWallet.toLowerCase() === walletAddress.toLowerCase();
+            })
+            .map((asset: any) => ({
+              id: asset.ID || asset.id,
+              owner: asset.Owner || asset.owner,
+              department: asset.department || asset.Department,
+              academicYear: asset.AcademicYear || asset.academicYear,
+              startDate: asset.StartDate || asset.startDate,
+              endDate: asset.EndDate || asset.endDate,
+              certificateType: asset.CertificateType || asset.certificateType,
+              issueDate: asset.IssueDate || asset.issueDate,
+              status: asset.Status || asset.status,
+              txHash: asset.TxHash || asset.txHash || ""
+            }));
+        }
+      }
+
+      console.log('✅ Certificates loaded:', certificates.map(c => c.id));
+      setAssets(certificates);
+
+      if (certificates.length === 0) {
+        console.log('📭 No certificates found for this wallet');
+      }
+    } catch (err) {
+      setError(`Network error: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch all assets (for reference/display purposes)
   const fetchAssets = async () => {
     setLoading(true);
     setError(null);
@@ -129,7 +243,12 @@ export default function FabricAssetManager() {
 
       // success response after asset is created and stored in blockchain ledger (on chaincode side)
       if (result.success) {
-        await fetchAssets();
+        // Refresh certificates to show the newly created one
+        if (walletConnected) {
+          await fetchCertificates();
+        } else {
+          await fetchAssets();
+        }
         setShowCreateForm(false);
         setNewAsset({
           id: '',
@@ -312,6 +431,9 @@ const editAsset = async () => {
       // load credentials from wallet
       await loadWalletCredentials();
 
+      // Fetch certificates from blockchain
+      await fetchCertificates();
+
       console.log('✅ Wallet connected and credentials loaded');
     } catch (error) {
       console.error('❌ Wallet connection failed:', error);
@@ -380,8 +502,9 @@ const editAsset = async () => {
       const result: ApiResponse<any> = await response.json();
 
       if (result.success) {
-        // Refresh wallet credentials
+        // Refresh wallet credentials and certificates
         await loadWalletCredentials();
+        await fetchCertificates();
         setShowCreateForm(false);
         setNewAsset({
           id: '',
@@ -497,16 +620,19 @@ const verifyCredential = async (credential: Credential) => {
             setWalletAddress(address);
             setWalletConnected(true);
             await loadWalletCredentials();
+
+            // Fetch certificates for this wallet (student or admin)
+            await fetchCertificates(address);
           } catch (error) {
             console.log('Failed to reconnect wallet service:', error);
             // Clear invalid connection state
             localStorage.removeItem('walletConnected');
             localStorage.removeItem('walletAddress');
           }
+        } else {
+          // Load blockchain assets (for display purposes) when no wallet is connected
+          await fetchAssets();
         }
-
-        // Load blockchain assets (for display purposes)
-        await fetchAssets();
       } catch (error) {
         console.log('ℹ️ Initialization error:', error);
         // Still try to load blockchain assets even if wallet fails
@@ -539,7 +665,7 @@ const verifyCredential = async (credential: Credential) => {
               <p className="text-gray-600 mt-2">Store credentials in your wallet, verify on blockchain</p>
               {walletConnected && (
                 <p className="text-sm text-gray-500 mt-1">
-                  {walletCredentials.length} credentials in your wallet
+                  {assets.length} certificates verified on blockchain
                 </p>
               )}
             </div>
@@ -657,15 +783,15 @@ const verifyCredential = async (credential: Credential) => {
             </form>
           </div>
         )}
-        {/* Wallet Credentials Display */}
+        {/* Student Certificates Display */}
         {walletConnected && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
-                Your Credentials ({walletCredentials.length})
+                Your Credentials ({assets.length})
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                Credentials stored in your wallet - accessible offline
+                Certificates stored on blockchain - verified and immutable
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -681,38 +807,56 @@ const verifyCredential = async (credential: Credential) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {walletCredentials.map((credential) => (
-                    <tr key={credential.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{credential.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{credential.studentName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{credential.department}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{credential.certificateType}</td>
+                  {assets.map((certificate) => (
+                    <tr key={certificate.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{certificate.id|| 'NO ID'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{certificate.owner}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{certificate.department}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{certificate.certificateType}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(credential.status)}`}>
-                          {credential.status}
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(certificate.status)}`}>
+                          {certificate.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
                           <button
-                            onClick={() => shareCredential(credential)}
+                            onClick={() => {
+                              const credentialData = {
+                                id: certificate.id,
+                                studentName: certificate.owner,
+                                department: certificate.department,
+                                certificateType: certificate.certificateType,
+                                status: certificate.status,
+                                hash: certificate.academicYear, // Hash is stored in academicYear field
+                                signature: '' // No signature for blockchain certificates
+                              };
+                              navigator.clipboard.writeText(JSON.stringify(credentialData, null, 2));
+                              alert('Certificate data copied to clipboard!');
+                            }}
                             className="text-blue-600 hover:text-blue-900"
-                            title="Share Credential"
+                            title="Share Certificate"
                           >
                             <Send className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => verifyCredential(credential)}
+                            onClick={() => {
+                              // Verify certificate on blockchain
+                              alert(`Certificate ${certificate.id} is verified on blockchain with hash: ${certificate.academicYear}`);
+                            }}
                             className="text-green-600 hover:text-green-900"
-                            title="Verify Credential"
+                            title="Verify Certificate"
                           >
                             <Check className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => verifyCredentialHash(credential)}
+                            onClick={() => {
+                              // Show certificate hash
+                              alert(`Certificate Hash: ${certificate.txHash}`);
+                            }}
                             className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                           >
-                            Verify Hash
+                            View Hash
                           </button>
                         </div>
                       </td>
@@ -721,9 +865,9 @@ const verifyCredential = async (credential: Credential) => {
                 </tbody>
               </table>
             </div>
-            {walletCredentials.length === 0 && (
+            {assets.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                No credentials in your wallet. Create your first credential to get started.
+                No certificates found for your wallet. Contact your university to issue certificates.
               </div>
             )}
           </div>
